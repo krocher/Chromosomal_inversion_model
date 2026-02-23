@@ -1,7 +1,8 @@
 // Modelling chromosomal inversions in bi-allelic populations (continent-island model)
 
 initialize() {
-	defineConstant("FileName","N_1000_WithCrossingOver");  // Suffix for the name of the generated files
+	setSeed(4);
+	defineConstant("FileName","Recoded_recombination_function");  // Suffix for the name of the generated files
 	defineConstant("Mu",1e-6);  // Mutation rate
 	defineConstant("R",1e-8);   // Recombination rate
 	defineConstant("L",2e2);   // Sequence length
@@ -10,7 +11,7 @@ initialize() {
 	defineConstant("INV_LENGTH",100);   // Inversion length
 	defineConstant("INV_START", asInteger(L/2 - INV_LENGTH/2));  // Beginning position of the inversion
 	defineConstant("INV_END", INV_START + INV_LENGTH - 1);  // End position of the inversion
-	defineConstant("N",1000);  // Population size
+	defineConstant("N",4000);  // Population size
 	defineConstant("H",0.0);  // Dominance of the mutations
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
 	defineConstant("S", -0.01); // Selection coefficient for the mutations
@@ -45,15 +46,6 @@ initialize() {
 
 }
 
-
-function (float)mutTypeFrequency(o<MutationType>$ mutType)
-{
-	muts = sim.mutationsOfType(mutType);
-	if (muts.size() > 0)
-		return sim.mutationFrequencies(NULL, muts);
-	return NULL;
-}
-
 1 early() {
 	sim.addSubpop("p1", N);
 	sim.addSubpop("p2", N);  // Creating 2 subpopulations of same size
@@ -66,7 +58,7 @@ function (float)mutTypeFrequency(o<MutationType>$ mutType)
 	target.removeMutations();   // Removing , all haplosomes will be "aa" by default
 	
 	// log results for inversion frequencies
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_",FileName,".csv"), logInterval = LOG_INTERVAL);
+	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,".csv"), logInterval = LOG_INTERVAL);
 	log.addTick();
 	log.addCustomColumn("inv_freq","p2Individuals = sim.subpopulations[1].individuals; sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size());");  // Frequency of the inverted arrangement amongst haplosomes
 	log.addCustomColumn("n_non_inv_haplosomes", "haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); non_inv = haplosomes[counts == 0]; non_inv.size();");
@@ -86,7 +78,7 @@ T_INV late() {
 
 T_INV:T_MAX late() {
 	if (sim.countOfMutationsOfType(m3)==0) {
-		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/last_generation.txt",paste("Time of loss of the inversion: ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
+		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation.txt",paste("Time of loss of the inversion: ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
 		sim.simulationFinished();
 	}
 }
@@ -117,22 +109,28 @@ recombination() {
 		}
 		return T;
 	} else {
-		if (sum(inInv) == 0) {
-			return F;  // if there is an even number of recombinations in the inversion; it leads to viable gametes, therefore recombination may not be suppressed
+		if (!any(inInv)) {
+			return F;
 		}
+		if (sum(inInv) % 2 == 0) {
+			if (gm1 != gm2) {
+				breakpoints = breakpoints[!inInv];
+				return T; 
+			} else {
+				return F;
+			}
+		}  
 		if (gm1 & gm2) {
-		// homozygote inverted: 2 breakpoints are added at the beginning and the end of the inversion to get the correct base at both ends of the inversion
+			// homozygote inverted: 2 breakpoints are added at the beginning and the end of the inversion to get the correct base at both ends of the inversion
 			left = (breakpoints == INV_START);
 			right = (breakpoints == INV_END + 1);
 			breakpoints = sort(c(breakpoints[!(left | right)],
 				c(INV_START, INV_END + 1)[c(sum(left) == 0, sum(right) == 0)]));   // sort them in the right order depending on the haplosome arrangement
 			return T;
 		} else {
-		// heterozygote inverted: resample to get 0 breakpoints
-		// this is *recursive*: it calls this recombination callback again!
-		breakpoints = sim.chromosomes.drawBreakpoints(individual);
-		}
-		return T;
+			breakpoints = breakpoints[!inInv];
+			return T;  
+		}	
 	}	
 }
 
