@@ -1,8 +1,8 @@
 // Modelling chromosomal inversions in bi-allelic populations (continent-island model)
 
 initialize() {
-	setSeed(4);
-	defineConstant("FileName","Recoded_recombination_function");  // Suffix for the name of the generated files
+	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
+	defineConstant("FileName","Test_fitness");  // Suffix for the name of the generated files
 	defineConstant("Mu",1e-6);  // Mutation rate
 	defineConstant("R",1e-8);   // Recombination rate
 	defineConstant("L",2e2);   // Sequence length
@@ -11,7 +11,7 @@ initialize() {
 	defineConstant("INV_LENGTH",100);   // Inversion length
 	defineConstant("INV_START", asInteger(L/2 - INV_LENGTH/2));  // Beginning position of the inversion
 	defineConstant("INV_END", INV_START + INV_LENGTH - 1);  // End position of the inversion
-	defineConstant("N",4000);  // Population size
+	defineConstant("N",2000);  // Population size
 	defineConstant("H",0.0);  // Dominance of the mutations
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
 	defineConstant("S", -0.01); // Selection coefficient for the mutations
@@ -19,7 +19,7 @@ initialize() {
 	defineConstant("m",0.01);   // Migration rate
 	defineConstant("T_MAX", 200000); // Time of simulation end
 	defineConstant("LOG_INTERVAL", 100); // Time interval for logging inversion frequencies and number of deleterious mutations
-	defineConstant("Double_Crossover",T); // Inclusion or not of double crossovers
+	defineConstant("Double_Crossover",F); // Inclusion or not of double crossovers
 	
 	initializeMutationRate(Mu);
 	
@@ -58,14 +58,15 @@ initialize() {
 	target.removeMutations();   // Removing , all haplosomes will be "aa" by default
 	
 	// log results for inversion frequencies
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,".csv"), logInterval = LOG_INTERVAL);
+	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL);
 	log.addTick();
 	log.addCustomColumn("inv_freq","p2Individuals = sim.subpopulations[1].individuals; sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size());");  // Frequency of the inverted arrangement amongst haplosomes
 	log.addCustomColumn("n_non_inv_haplosomes", "haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); non_inv = haplosomes[counts == 0]; non_inv.size();");
 	log.addCustomColumn("n_mut_per_non_inv_haplosome","haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); non_inv = haplosomes[counts == 0]; pos = non_inv.positionsOfMutationsOfType(m1); sum((pos >= INV_START) & (pos <= INV_END))/(non_inv.size());");
 	log.addCustomColumn("n_inv_haplosomes", "haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); inv = haplosomes[counts > 0]; inv.size();");
 	log.addCustomColumn("n_mut_per_inv_haplosome","haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); inv = haplosomes[counts > 0]; pos = inv.positionsOfMutationsOfType(m1); sum((pos >= INV_START) & (pos <= INV_END))/(inv.size());");
-	
+	log.addCustomColumn("inv_fitness","p2Individuals = sim.subpopulations[1].individuals; inv_freq = sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()); (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq);");
+    log.addCustomColumn("non_inv_fitness","p2Individuals = sim.subpopulations[1].individuals; inv_freq = sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()); (1+S_INV)*(1-inv_freq)+1*inv_freq;");
 	
 	// proportion of simulations with inverted haplosomes still existing (in Bash)
 }
@@ -78,7 +79,7 @@ T_INV late() {
 
 T_INV:T_MAX late() {
 	if (sim.countOfMutationsOfType(m3)==0) {
-		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation.txt",paste("Time of loss of the inversion: ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
+		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation.txt",paste("Time of loss of the inversion","(Rep ",Rep,"): ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
 		sim.simulationFinished();
 	}
 }
