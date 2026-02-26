@@ -1,12 +1,13 @@
 // Modelling chromosomal inversions in bi-allelic populations (continent-island model)
 
 initialize() {
+	setSeed(9151250013170199950);
 	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
-	defineConstant("FileName","Test_fitness");  // Suffix for the name of the generated files
-	defineConstant("Mu",1e-6);  // Mutation rate
+	defineConstant("FileName","Test with old Log ");  // Suffix for the name of the generated files
+	defineConstant("Mu",1e-5);  // Mutation rate
 	defineConstant("R",1e-8);   // Recombination rate
 	defineConstant("L",2e2);   // Sequence length
-	defineConstant("T_INV", 40000);  // Burn-in time before introducing inversions
+	defineConstant("T_INV", 1000);  // Burn-in time before introducing inversions
 	defineConstant("I",0.1);  // Initial proportion of inverted arrangements in population 2
 	defineConstant("INV_LENGTH",100);   // Inversion length
 	defineConstant("INV_START", asInteger(L/2 - INV_LENGTH/2));  // Beginning position of the inversion
@@ -15,9 +16,9 @@ initialize() {
 	defineConstant("H",0.0);  // Dominance of the mutations
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
 	defineConstant("S", -0.01); // Selection coefficient for the mutations
-	defineConstant("S_INV", 0.02); // Selection coefficient for the inversion
+	defineConstant("S_INV", 0.05); // Selection coefficient for the inversion
 	defineConstant("m",0.01);   // Migration rate
-	defineConstant("T_MAX", 200000); // Time of simulation end
+	defineConstant("T_MAX", 40000); // Time of simulation end
 	defineConstant("LOG_INTERVAL", 100); // Time interval for logging inversion frequencies and number of deleterious mutations
 	defineConstant("Double_Crossover",F); // Inclusion or not of double crossovers
 	
@@ -57,17 +58,41 @@ initialize() {
 	
 	target.removeMutations();   // Removing , all haplosomes will be "aa" by default
 	
+
+	p2Individuals = sim.subpopulations[1].individuals;
+	defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
+
+	haplosomes = p2.haplosomes;
+	counts = haplosomes.countOfMutationsOfType(m3);
+	inv = haplosomes[counts > 0];
+
+	non_inv = haplosomes[counts == 0];
+	defineGlobal("n_non_inv_haplosomes",non_inv.size());
+
+	pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
+	defineGlobal("n_mut_per_non_inv_haplosome",sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+	defineGlobal("non_inv_fitness", (1+S_INV)*(1-inv_freq)+1*inv_freq);
+
+	inv = haplosomes[counts > 0];
+	defineGlobal("n_inv_haplosomes", inv.size());
+
+	pos_inv = inv.positionsOfMutationsOfType(m1);
+	defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
+	defineGlobal("inv_fitness", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
+
 	// log results for inversion frequencies
 	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL);
 	log.addTick();
-	log.addCustomColumn("inv_freq","p2Individuals = sim.subpopulations[1].individuals; sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size());");  // Frequency of the inverted arrangement amongst haplosomes
-	log.addCustomColumn("n_non_inv_haplosomes", "haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); non_inv = haplosomes[counts == 0]; non_inv.size();");
-	log.addCustomColumn("n_mut_per_non_inv_haplosome","haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); non_inv = haplosomes[counts == 0]; pos = non_inv.positionsOfMutationsOfType(m1); sum((pos >= INV_START) & (pos <= INV_END))/(non_inv.size());");
-	log.addCustomColumn("n_inv_haplosomes", "haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); inv = haplosomes[counts > 0]; inv.size();");
-	log.addCustomColumn("n_mut_per_inv_haplosome","haplosomes = p2.haplosomes; counts = haplosomes.countOfMutationsOfType(m3); inv = haplosomes[counts > 0]; pos = inv.positionsOfMutationsOfType(m1); sum((pos >= INV_START) & (pos <= INV_END))/(inv.size());");
-	log.addCustomColumn("inv_fitness","p2Individuals = sim.subpopulations[1].individuals; inv_freq = sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()); (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq);");
-    log.addCustomColumn("non_inv_fitness","p2Individuals = sim.subpopulations[1].individuals; inv_freq = sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()); (1+S_INV)*(1-inv_freq)+1*inv_freq;");
-	
+	log.addCustomColumn("inv_freq","inv_freq;");  // Frequency of the inverted arrangement amongst haplosomes
+	log.addCustomColumn("n_non_inv_haplosomes", "n_non_inv_haplosomes;");
+	log.addCustomColumn("n_mut_per_non_inv_haplosome","n_mut_per_non_inv_haplosome;");
+	log.addCustomColumn("n_inv_haplosomes", "n_inv_haplosomes;");
+	log.addCustomColumn("n_mut_per_inv_haplosome","n_mut_per_inv_haplosome;");
+	log.addCustomColumn("inv_fitness","inv_fitness;");
+    log.addCustomColumn("non_inv_fitness","non_inv_fitness;");
+	*/
+
+
 	// proportion of simulations with inverted haplosomes still existing (in Bash)
 }
 
@@ -166,6 +191,26 @@ late() {
 			haplosome.removeMutations(c(stacked_m2, stacked_m1));
 		}
 	}
+
+	if (sim.cycle % 100 == 1)
+	{
+		p2Individuals = sim.subpopulations[1].individuals;
+		haplosomes = p2.haplosomes;
+		counts = haplosomes.countOfMutationsOfType(m3);
+		inv = haplosomes[counts > 0];
+		non_inv = haplosomes[counts == 0];
+		pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
+		inv = haplosomes[counts > 0];
+		pos_inv = inv.positionsOfMutationsOfType(m1); 
+		defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
+		defineGlobal("n_non_inv_haplosomes",non_inv.size());
+		defineGlobal("n_mut_per_non_inv_haplosome",sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+		defineGlobal("non_inv_fitness", (1+S_INV)*(1-inv_freq)+1*inv_freq);
+		defineGlobal("n_inv_haplosomes", inv.size());
+		defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
+		defineGlobal("inv_fitness", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
+	}
+		
 }
 
 // Simulation stop
