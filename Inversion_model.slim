@@ -3,7 +3,7 @@
 initialize() {
 	setSeed(9151250013170199950);
 	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
-	defineConstant("FileName","Test with old Log ");  // Suffix for the name of the generated files
+	defineConstant("FileName","Freq Equilibrium 0.2-0.4");  // Suffix for the name of the generated files
 	defineConstant("Mu",1e-5);  // Mutation rate
 	defineConstant("R",1e-8);   // Recombination rate
 	defineConstant("L",2e2);   // Sequence length
@@ -16,9 +16,9 @@ initialize() {
 	defineConstant("H",0.0);  // Dominance of the mutations
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
 	defineConstant("S", -0.01); // Selection coefficient for the mutations
-	defineConstant("S_INV", 0.05); // Selection coefficient for the inversion
+	defineConstant("S_INV", 0.02); // Selection coefficient for the inversion
 	defineConstant("m",0.01);   // Migration rate
-	defineConstant("T_MAX", 40000); // Time of simulation end
+	defineConstant("T_MAX", 20000); // Time of simulation end
 	defineConstant("LOG_INTERVAL", 100); // Time interval for logging inversion frequencies and number of deleterious mutations
 	defineConstant("Double_Crossover",F); // Inclusion or not of double crossovers
 	
@@ -47,6 +47,61 @@ initialize() {
 
 }
 
+function (void)updateGlobal(void)    // Updating all global variables
+{
+	p2Individuals = sim.subpopulations[1].individuals;
+	II_individuals = p2Individuals[p2Individuals.countOfMutationsOfType(m3) == 2];     // Separating II, IN and NN individuals
+	IN_individuals = p2Individuals[p2Individuals.countOfMutationsOfType(m3) == 1];
+	NN_individuals = p2Individuals[p2Individuals.countOfMutationsOfType(m3) == 0];
+	haplosomes = p2.haplosomes;
+	counts = haplosomes.countOfMutationsOfType(m3);
+	inv = haplosomes[counts > 0];
+	non_inv = haplosomes[counts == 0];
+	pos_inv = inv.positionsOfMutationsOfType(m1); 
+	pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
+
+	defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
+	defineGlobal("n_non_inv_haplosomes",non_inv.size());
+	defineGlobal("n_mut_per_non_inv_haplosome",sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+	defineGlobal("non_inv_marginal_fitness_inversion", 1*(1-inv_freq)+(1+H_INV*S_INV)*inv_freq);
+	defineGlobal("n_inv_haplosomes", inv.size());
+	defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
+	defineGlobal("inv_marginal_fitness_inv_inversion", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
+
+	homozygous_mut_II = II_individuals.mutationsFromHaplosomes("homozygous",m1);
+	heterozygous_mut_II = II_individuals.mutationsFromHaplosomes("heterozygous",m1);
+	homozygous_mut_IN = IN_individuals.mutationsFromHaplosomes("homozygous",m1);
+	heterozygous_mut_IN = IN_individuals.mutationsFromHaplosomes("heterozygous",m1);
+	homozygous_mut_NN = NN_individuals.mutationsFromHaplosomes("homozygous",m1);
+	heterozygous_mut_NN = NN_individuals.mutationsFromHaplosomes("heterozygous",m1);
+
+
+	homozygous_mutations_number_II = 2*homozygous_mut_II[(homozygous_mut_II.position >= INV_START) & (homozygous_mut_II.position <= INV_END)].size();
+	heterozygous_mutations_number_II = heterozygous_mut_II[(heterozygous_mut_II.position >= INV_START) & (heterozygous_mut_II.position <= INV_END)].size();
+	total_mutations_number_II = sum(II_individuals.countOfMutationsOfType(m1));
+	homozygous_mutations_number_IN = 2*homozygous_mut_IN[(homozygous_mut_IN.position >= INV_START) & (homozygous_mut_IN.position <= INV_END)].size();
+	heterozygous_mutations_number_IN = heterozygous_mut_IN[(heterozygous_mut_IN.position >= INV_START) & (heterozygous_mut_IN.position <= INV_END)].size();
+	total_mutations_number_IN = sum(IN_individuals.countOfMutationsOfType(m1));
+	homozygous_mutations_number_NN = 2*homozygous_mut_NN[(homozygous_mut_NN.position >= INV_START) & (homozygous_mut_NN.position <= INV_END)].size();
+	heterozygous_mutations_number_NN = heterozygous_mut_NN[(heterozygous_mut_NN.position >= INV_START) & (heterozygous_mut_NN.position <= INV_END)].size();
+	total_mutations_number_NN = sum(NN_individuals.countOfMutationsOfType(m1));
+
+
+	defineGlobal("mean_fitness_mutation_II",mean((1+S)^(homozygous_mutations_number_II)*(1+H*S)^(heterozygous_mutations_number_II)));
+	defineGlobal("mean_fitness_mutation_IN",mean((1+S)^(homozygous_mutations_number_IN)*(1+H*S)^(heterozygous_mutations_number_IN)));
+	defineGlobal("mean_fitness_mutation_NN",mean((1+S)^(homozygous_mutations_number_NN)*(1+H*S)^(heterozygous_mutations_number_NN)));
+
+
+	defineGlobal("mean_fitness_global_II",(1+S_INV)*mean((1+S)^(homozygous_mutations_number_II)*(1+H*S)^(heterozygous_mutations_number_II)));
+	defineGlobal("mean_fitness_global_IN",(1+H_INV*S_INV)*mean((1+S)^(homozygous_mutations_number_IN)*(1+H*S)^(heterozygous_mutations_number_IN)));
+	defineGlobal("mean_fitness_global_NN",1*mean((1+S)^(homozygous_mutations_number_NN)*(1+H*S)^(heterozygous_mutations_number_NN)));
+
+	defineGlobal("freq_homozygous_mut_II",homozygous_mutations_number_II/total_mutations_number_II);
+	defineGlobal("freq_homozygous_mut_IN",homozygous_mutations_number_IN/total_mutations_number_IN);
+	defineGlobal("freq_homozygous_mut_NN",homozygous_mutations_number_NN/total_mutations_number_NN);
+
+}
+
 1 early() {
 	sim.addSubpop("p1", N);
 	sim.addSubpop("p2", N);  // Creating 2 subpopulations of same size
@@ -58,27 +113,7 @@ initialize() {
 	
 	target.removeMutations();   // Removing , all haplosomes will be "aa" by default
 	
-
-	p2Individuals = sim.subpopulations[1].individuals;
-	defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
-
-	haplosomes = p2.haplosomes;
-	counts = haplosomes.countOfMutationsOfType(m3);
-	inv = haplosomes[counts > 0];
-
-	non_inv = haplosomes[counts == 0];
-	defineGlobal("n_non_inv_haplosomes",non_inv.size());
-
-	pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
-	defineGlobal("n_mut_per_non_inv_haplosome",sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
-	defineGlobal("non_inv_fitness", (1+S_INV)*(1-inv_freq)+1*inv_freq);
-
-	inv = haplosomes[counts > 0];
-	defineGlobal("n_inv_haplosomes", inv.size());
-
-	pos_inv = inv.positionsOfMutationsOfType(m1);
-	defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
-	defineGlobal("inv_fitness", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
+	updateGlobal();
 
 	// log results for inversion frequencies
 	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL);
@@ -88,9 +123,15 @@ initialize() {
 	log.addCustomColumn("n_mut_per_non_inv_haplosome","n_mut_per_non_inv_haplosome;");
 	log.addCustomColumn("n_inv_haplosomes", "n_inv_haplosomes;");
 	log.addCustomColumn("n_mut_per_inv_haplosome","n_mut_per_inv_haplosome;");
-	log.addCustomColumn("inv_fitness","inv_fitness;");
-    log.addCustomColumn("non_inv_fitness","non_inv_fitness;");
-	*/
+	log.addCustomColumn("inv_marginal_fitness_inv_inversion","inv_marginal_fitness_inv_inversion;");
+    log.addCustomColumn("non_inv_marginal_fitness_inversion","non_inv_marginal_fitness_inversion;");
+	log.addCustomColumn("mean_fitness_mutation_II","mean_fitness_mutation_II;");
+	log.addCustomColumn("mean_fitness_mutation_IN","mean_fitness_mutation_IN;");
+	log.addCustomColumn("mean_fitness_mutation_NN","mean_fitness_mutation_NN;");
+	log.addCustomColumn("freq_homozygous_mut_II","freq_homozygous_mut_II;");
+	log.addCustomColumn("freq_homozygous_mut_IN","freq_homozygous_mut_IN;");
+	log.addCustomColumn("freq_homozygous_mut_NN","freq_homozygous_mut_NN;");
+	
 
 
 	// proportion of simulations with inverted haplosomes still existing (in Bash)
@@ -194,22 +235,9 @@ late() {
 
 	if (sim.cycle % 100 == 1)
 	{
-		p2Individuals = sim.subpopulations[1].individuals;
-		haplosomes = p2.haplosomes;
-		counts = haplosomes.countOfMutationsOfType(m3);
-		inv = haplosomes[counts > 0];
-		non_inv = haplosomes[counts == 0];
-		pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
-		inv = haplosomes[counts > 0];
-		pos_inv = inv.positionsOfMutationsOfType(m1); 
-		defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
-		defineGlobal("n_non_inv_haplosomes",non_inv.size());
-		defineGlobal("n_mut_per_non_inv_haplosome",sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
-		defineGlobal("non_inv_fitness", (1+S_INV)*(1-inv_freq)+1*inv_freq);
-		defineGlobal("n_inv_haplosomes", inv.size());
-		defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
-		defineGlobal("inv_fitness", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
+		updateGlobal();
 	}
+
 		
 }
 
