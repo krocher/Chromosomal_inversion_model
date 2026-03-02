@@ -1,6 +1,7 @@
 rm(list = ls())
 library(dplyr)
-library()
+
+Tmax = 200000
 
  # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ 90%Inv .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ WithoutCrossover .csv"
@@ -18,7 +19,15 @@ library()
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ MoreTime Rep 1 .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ No Inversion_HigherSelectionMutation (SINV=0.2,Mu=1e-5) Rep 5 .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ No Inversion_HigherSelectionMutation (SINV=0.1,Mu=1e-5) Rep 5 .csv"
-File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Test_fitness Rep 1 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Test_fitness Rep 1 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Degenerescence_behaviour Rep 3 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Degenerescence_behaviour MoreTime (S=0.05) Rep 2 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Degenerescence_behaviour (N=4000) Rep 1 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Mutation_Selection equilibrium (N=5000) (Mu=1e-5,S=-0.01) Rep 1 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Inversion_frequency (N=2000)_Degenerescence_behaviour MoreTime (S=0.05, Mu=1e-5) Rep 1 (Seed = 9151250013170199950) Rep 1 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Mutation_Selection equilibrium (N=5000) (Mu=1e-5,S=-0.01) Rep 1 .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Freq Equilibrium 0.2-0.4 Rep 1 .csv"
+File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Test with new logging variables Rep 2 .csv"
 
 inversions <- read.csv(File, stringsAsFactors = FALSE)
 
@@ -31,20 +40,39 @@ for (i in 1:length(inversions$n_mut_per_inv_haplosome)) {
 }
 
 inverted_max_mut <- max(as.numeric(inversions$n_mut_per_inv_haplosome))
-inverted_max_fitness <- max(inversions$inv_fitness)
+inverted_max_fitness <- max(inversions$inv_marginal_fitness_inv_inversion)
 non_inverted_max_mut <- max(as.numeric(inversions$n_mut_per_non_inv_haplosome))
-non_inverted_max_fitness <- max(inversions$non_inv_fitness)
+non_inverted_max_fitness <- max(inversions$non_inv_marginal_fitness_inversion)
 max = max(inverted_max_mut,non_inverted_max_mut)
 max_fitness = max(inverted_max_fitness,non_inverted_max_fitness)
 
-par(mfrow = c(1,3))
-plot(x = inversions$tick, y = inversions$inv_freq, col = "red", type = "l", xlab = "Generations", ylab = "Frequency of the inversion", main = "Inversion frequency evolution",xlim = c(0,200000))
-plot(x = inversions$tick, y = inversions$n_mut_per_inv_haplosome, col = "black", type = "l", xlab = "Generations", ylab = "Number of mutations in the inversion area", main = "Evolution of the number of mutations in the inversion area",xlim = c(0,200000),ylim = c(0,max*1.2))
+par(mfrow = c(2,3))
+plot(x = inversions$tick, y = inversions$inv_freq, col = "red", type = "l", xlab = "Generations", ylab = "Frequency of the inversion", main = "Inversion frequency evolution",xlim = c(0,Tmax))
+plot(x = inversions$tick, y = inversions$n_mut_per_inv_haplosome, col = "black", type = "l", xlab = "Generations", ylab = "Number of mutations in the inversion area", main = "Evolution of the number of mutations in the inversion area",xlim = c(0,Tmax),ylim = c(0,max*1.2))
 lines(x = inversions$tick, y = inversions$n_mut_per_non_inv_haplosome, col = "blue", type = "l")
 legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
        col=c("blue", "black"), lty=1:2, cex=0.8)
-plot(x = inversions$tick, y = inversions$inv_fitness, col = "black", type = "l", xlab = "Generations", ylab = "Marginal fitness of haplosomes", main = "Evolution of the marginal fitness of haplosomes",xlim = c(0,200000),ylim = c(1,max_fitness+0.005))
-lines(x = inversions$tick, y = inversions$non_inv_fitness, col = "blue", type = "l")
+
+plot(x = inversions$tick, y = inversions$inv_marginal_fitness_inv_inversion, col = "black", type = "l", xlab = "Generations", ylab = "Marginal fitness of haplosomes", main = "Evolution of the marginal fitness of haplosomes",xlim = c(0,Tmax),ylim = c(1,max_fitness+0.005))
+lines(x = inversions$tick, y = inversions$non_inv_marginal_fitness_inversion, col = "blue", type = "l")
 legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
        col=c("blue", "black"), lty=1:2, cex=0.8)
+
+plot(x = inversions$tick, y = inversions$freq_homozygous_mut_II, col = "black",  type = "l", xlab = "Generations", ylab = "Homozygote frequency of mutations", main = "Evolution of the homozygote frequency of mutations",xlim = c(0,Tmax),ylim = c(0,0.3))
+lines(x = inversions$tick, y = inversions$freq_homozygous_mut_IN, col = "violet",  type = "l")
+lines(x = inversions$tick, y = inversions$freq_homozygous_mut_NN, col = "blue",  type = "l")
+legend("topleft", legend=c("NN","IN","II"),
+       col=c("blue", "violet","black"), lty=1:2, cex=0.8)
+
+plot(x = inversions$tick, y = inversions$mean_fitness_mutation_II, col = "black",  type = "l", xlab = "Generations", ylab = "Mean fitness caused by mutation", main = "Evolution of the mean fitness caused by mutations in arrangements",xlim = c(0,Tmax),ylim = c(0.95,1.05))
+lines(x = inversions$tick, y = inversions$mean_fitness_mutation_IN, col = "violet", type = "l")
+lines(x = inversions$tick, y = inversions$mean_fitness_mutation_NN, col = "blue", type = "l")
+legend("topleft", legend=c("NN","IN","II"),
+       col=c("blue", "violet","black"), lty=1:2, cex=0.8)
+
+plot(x = inversions$tick, y = inversions$mean_fitness_global_II, col = "black",  type = "l", xlab = "Generations", ylab = "Global fitness", main = "Evolution of the global fitness of arrangements",xlim = c(0,Tmax),ylim = c(0.95,1.05))
+lines(x = inversions$tick, y = inversions$mean_fitness_global_IN, col = "violet",  type = "l")
+lines(x = inversions$tick, y = inversions$mean_fitness_global_NN, col = "blue",  type = "l")
+legend("topleft", legend=c("NN","IN","II"),
+       col=c("blue", "violet","black"), lty=1:2, cex=0.8)
 
