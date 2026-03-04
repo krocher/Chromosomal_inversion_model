@@ -1,27 +1,66 @@
 // Modelling chromosomal inversions in bi-allelic populations (continent-island model)
 initialize() {
-	setSeed(9151250013170199955);
+	// setSeed(9151250013170199950);
+	setSeed(12345);
+
 	if (!exists("Rep")) defineConstant("Rep",2);  // Identifier of the simulation amongst simulations with identical parameters
-	defineConstant("FileName","Test with new logging variables");  // Suffix for the name of the generated files
+	defineConstant("FileName","output_test_K1_20e3_K2_20e3_chrom_length_3e6_inv_length_2e6_recrate_1e8_mutrate_1e8_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv");  // Suffix for the name of the generated files
+	
+	defineConstant("Q", 5.0);  // Scaling factor
+
 	defineConstant("Mu",1e-6);  // Mutation rate
 	defineConstant("R",1e-8);   // Recombination rate
 	defineConstant("L",2e2);   // Sequence length
-	defineConstant("T_INV", 40000);  // Burn-in time before introducing inversions
 	defineConstant("I",0.1);  // Initial proportion of inverted arrangements in population 2
 	defineConstant("INV_LENGTH",100);   // Inversion length
 	defineConstant("INV_START", asInteger(L/2 - INV_LENGTH/2));  // Beginning position of the inversion
 	defineConstant("INV_END", INV_START + INV_LENGTH - 1);  // End position of the inversion
-	defineConstant("N",2000);  // Population size
-	defineConstant("H",0.0);  // Dominance of the mutations
-	defineConstant("H_INV",0.5);  // Dominance of the inversion
-	defineConstant("S", -0.01); // Selection coefficient for the mutations
-	defineConstant("S_INV", 0.02); // Selection coefficient for the inversion
-	defineConstant("m",0.01);   // Migration rate
-	defineConstant("T_MAX", 200000); // Time of simulation end
-	defineConstant("LOG_INTERVAL", 100); // Time interval for logging inversion frequencies and number of deleterious mutations
-	defineConstant("Double_Crossover",F); // Inclusion or not of double crossovers
 	
-	initializeMutationRate(Mu);
+	// -- Demographic parameters --
+	
+	defineGlobal("N",2000);  // Population size
+	defineGlobal("m12",0.01);   // Migration rate from population P1 to P2
+	defineGlobal("m13",0.01);   // Migration rate from population P1 to P3
+	defineConstant("thirdPopControl", F);	// Boolean describing whether there is a third population or not
+
+	// -- Deleterious Mutations --
+
+	defineGlobal("H",0.0);  // Dominance of the mutations
+	defineGlobal("S", -0.01); // Selection coefficient for the mutations
+
+	// -- Inversion parameters --
+	defineConstant("H_INV",0.5);  // Dominance of the inversion
+	defineConstant("S_INV", 0.02); // Selection coefficient for the inversion
+
+
+	// -- Time parameters
+	defineGlobal("T_MAX", 200000); // Time of simulation end
+	defineGlobal("LOG_INTERVAL", 100); // Time interval for logging inversion frequencies and number of deleterious mutations
+	defineGlobal("T_INV", 40000);  // Burn-in time before introducing inversions
+	
+
+	// --- Scaled Parameters --- 
+
+	// Population & Time: Divide by Q
+	defineGlobal("N", asInteger(N / Q));
+    defineConstant("T_MAX_scaled", asInteger(T_MAX_scaled / Q));
+	defineConstant("LOG_INTERVAL_scaled", asInteger(LOG_INTERVAL_scaled / Q));
+    defineConstant("T_INV_scaled", asInteger(T_INV_scaled / Q));
+
+	// Rates & Selection: Multiply by Q
+	defineGlobal("S", S * Q);
+    defineGlobal("S_INV", S_INV * Q);
+    defineGlobal("Mu", Mu * Q);
+    defineGlobal("R", R * Q);
+	defineGlobal("m12", m12 * Q);
+	defineGlobal("m13", m13 * Q);
+
+	// Safety check: ensure fitness is strictly positive
+	if (1+S*Q <= 0)	stop("Scaling Error: Scaled deleterious selection coefficient makes individuals lethal (1+S<=0).");
+	if (1+S_INV*Q <= 0) stop("Scaling Error: Scaled inversion selection coefficient makes individuals lethal (1+S_INV<=0).");
+
+
+	// -- Mutation Type Definitions: to model biallelic loci --
 	
 	initializeMutationType("m1", H, "f", S);   // Defining deleterious mutations
 	m1.convertToSubstitution = F;    // Allowing loci to have back-mutations after one allele is fixed
@@ -31,17 +70,20 @@ initialize() {
 	m2.convertToSubstitution = F;      // Same as earlier
 	m2.color = "cornflowerblue";
 	
+
+	// Markers for the chromosomal inversion boundaries
 	initializeMutationType("m3",H_INV,"f",S_INV);   // Start marker
-	initializeMutationType("m4",H_INV,"f",S_INV);   // End marker
+	initializeMutationType("m4",H_INV,"f",0.0);   // End marker
 	c(m3,m4).convertToSubstitution = T;    // Inversion can get fixed, replace by F if we wanted double/back-inversions
 	c(m3,m4).color = "yellow";
 	
 	
 	initializeGenomicElementType("g1", m2, 1.0);    // Defining the genomic element on which deleterious mutations will appear
+	initializeGenomicElement(g1, 0,L-1); // uniform chromosome with uniform recombination
 	
-	// uniform chromosome with uniform recombination
-	initializeGenomicElement(g1, 0,L-1);
-	
+
+	initializeMutationRate(Mu);
+
 	initializeRecombinationRate(R);
 
 }
@@ -121,17 +163,27 @@ function (void)updateGlobal(void) {   // Updating all global variables
 }
 
 1 early() {
+	// Create subpopulations
 	sim.addSubpop("p1", N);
-	sim.addSubpop("p2", N);  // Creating 2 subpopulations of same size
-	p2.setMigrationRates(p1,m);    // Setting the migration rate from the continent to the island
+	sim.addSubpop("p2", N);  // Creating 2 or 3 subpopulations of same size
+	if(thirdPopControl==T) sim.addSubpop("p3", N);
 	
+	// Apply migration rates between populations
+	p2.setMigrationRates(p1,m12);    // Setting the migration rate from the continent to the island
+	if(thirdPopControl==T) p3.setMigrationRates(p1, mig13);   	// migration p1 -> p3 (non-inversion island)
+
+	// -- Mutation Template Generation --
+
 	target = p1.haplosomes[0];
 	target.addNewDrawnMutation(m1, 0:(L-1));
 	defineConstant("MUT", target.mutations);   // Creating the structure that will be used in all haplosomes
-	
 	target.removeMutations();   // Removing , all haplosomes will be "aa" by default
 	
-	updateGlobal();
+
+	// -- Logging Setup --
+
+	updateGlobal();  // Updating all global variables
+
 
 	// log results for inversion frequencies
 	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL);
@@ -158,13 +210,13 @@ function (void)updateGlobal(void) {   // Updating all global variables
 	// proportion of simulations with inverted haplosomes still existing (in Bash)
 }
 
-T_INV late() {
+T_INV_scaled late() {
 	inverted = sample(p2.haplosomes,asInteger(2*I*N));    // Inverting some of the haplosomes
 	inverted.addNewDrawnMutation(m3, INV_START);
 	inverted.addNewDrawnMutation(m4, INV_END);
 }
 
-T_INV:T_MAX late() {
+T_INV_scaled:T_MAX_scaled late() {
 	if (sim.countOfMutationsOfType(m3)==0) {
 		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation.txt",paste("Time of loss of the inversion","(Rep ",Rep,"): ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
 		sim.simulationFinished();
@@ -254,7 +306,7 @@ late() {
 		}
 	}
 
-	if (sim.cycle % 100 == 1)
+	if (sim.cycle % LOG_INTERVAL_scaled == 1)
 	{
 		updateGlobal();
 	}
@@ -263,5 +315,5 @@ late() {
 }
 
 // Simulation stop
-T_MAX late() {
+T_MAX_scaled late() {
  }
