@@ -3,7 +3,7 @@ initialize() {
 	// setSeed(9151250013170199950);
 	setSeed(12345);
 
-	if (!exists("Rep")) defineConstant("Rep",2);  // Identifier of the simulation amongst simulations with identical parameters
+	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
 	defineConstant("FileName","output_test_K1_20e3_K2_20e3_chrom_length_3e6_inv_length_2e6_recrate_1e8_mutrate_1e8_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv");  // Suffix for the name of the generated files
 	
 	defineConstant("Q", 5.0);  // Scaling factor
@@ -19,7 +19,9 @@ initialize() {
 
 	// -- Demographic parameters --
 	
-	defineGlobal("N",20e3);  // Population size
+	defineGlobal("N1",20e3);  // Population sizes
+	defineGlobal("N2",20e3);
+	defineGlobal("N3",N2);
 	defineGlobal("m12",0.005);   // Migration rate from population P1 to P2
 	defineGlobal("m13",m12);   // Migration rate from population P1 to P3
 	defineConstant("thirdPopControl", F);	// Boolean describing whether there is a third population or not
@@ -43,7 +45,9 @@ initialize() {
 	// --- Scaled Parameters --- 
 
 	// Population & Time: Divide by Q
-	defineGlobal("N", asInteger(N / Q));
+	defineGlobal("N1", asInteger(N1 / Q));
+	defineGlobal("N2", asInteger(N2 / Q));
+	defineGlobal("N3", asInteger(N3 / Q));
     defineConstant("T_MAX_scaled", asInteger(T_MAX / Q));
 	defineConstant("LOG_INTERVAL_scaled", asInteger(LOG_INTERVAL / Q));
     defineConstant("T_INV_scaled", asInteger(T_INV / Q));
@@ -92,13 +96,13 @@ initialize() {
 
 1 early() {
 	// Create subpopulations
-	sim.addSubpop("p1", N);
-	sim.addSubpop("p2", N);  // Creating 2 or 3 subpopulations of same size
-	if(thirdPopControl==T) sim.addSubpop("p3", N);
+	sim.addSubpop("p1", N1);
+	sim.addSubpop("p2", N2);  // Creating 2 or 3 subpopulations of same size
+	if(thirdPopControl==T) sim.addSubpop("p3", N3);
 	
 	// Apply migration rates between populations
 	p2.setMigrationRates(p1,m12);    // Setting the migration rate from the continent to the island
-	if(thirdPopControl==T) p3.setMigrationRates(p1, mig13);   	// migration p1 -> p3 (non-inversion island)
+	if(thirdPopControl==T) p3.setMigrationRates(p1, m13);   	// migration p1 -> p3 (non-inversion island)
 
 	// -- Mutation Template Generation --
 
@@ -114,7 +118,7 @@ initialize() {
 
 
 	// log results for inversion frequencies
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL);
+	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
 	log.addTick();
 	log.addCustomColumn("inv_freq","inv_freq;");  // Frequency of the inverted arrangement amongst haplosomes
 	log.addCustomColumn("n_non_inv_haplosomes", "n_non_inv_haplosomes;");
@@ -134,6 +138,8 @@ initialize() {
 	log.addCustomColumn("mean_fitness_global_II","mean_fitness_global_II;");
 	log.addCustomColumn("mean_fitness_global_IN","mean_fitness_global_IN;");
 	log.addCustomColumn("mean_fitness_global_NN","mean_fitness_global_NN;");
+	log.addCustomColumn("covariance_mutation_inversion_I","covariance_mutation_inversion_I;");
+	log.addCustomColumn("covariance_mutation_inversion_N","covariance_mutation_inversion_N;");
 	
 
 
@@ -141,7 +147,7 @@ initialize() {
 }
 
 T_INV_scaled late() {
-	inverted = sample(p2.haplosomes,asInteger(2*I*N));    // Inverting some of the haplosomes
+	inverted = sample(p2.haplosomes,asInteger(2*I*N2));    // Inverting some of the haplosomes
 	inverted.addNewDrawnMutation(m3, INV_START);
 	inverted.addNewDrawnMutation(m4, INV_END);
 }
@@ -235,7 +241,7 @@ late() {
 		}
 	}
 
-	if (sim.cycle % LOG_INTERVAL_scaled == 1)
+	if (sim.cycle % LOG_INTERVAL_scaled == 0)
 	{
 		updateGlobal();
 	}
@@ -252,7 +258,7 @@ T_MAX_scaled late() {
 
 function (float)Fitness(No<Individual> individuals) {
 	if (individuals.size() == 0) {
-		return(1.0);
+		return(0/0);
 	}
 	a = asFloat(1:(individuals.size()));
 	for (i in (1:(individuals.size()))) {
@@ -279,23 +285,6 @@ function (void)updateGlobal(void) {   // Updating all global variables
 	pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
 
 	defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
-	defineGlobal("n_non_inv_haplosomes",non_inv.size());
-	defineGlobal("n_mut_per_non_inv_haplosome",sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
-	defineGlobal("non_inv_marginal_fitness_inversion", 1*(1-inv_freq)+(1+H_INV*S_INV)*inv_freq);
-	defineGlobal("n_inv_haplosomes", inv.size());
-	defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
-	defineGlobal("inv_marginal_fitness_inv_inversion", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
-
-	defineGlobal("mean_fitness_mutation_II",Fitness(II_individuals));
-	defineGlobal("mean_fitness_mutation_IN",Fitness(IN_individuals));
-	defineGlobal("mean_fitness_mutation_NN",Fitness(NN_individuals));
-
-	defineGlobal("fitness_load_I",1-(mean_fitness_mutation_II*inv_freq + mean_fitness_mutation_IN*(1-inv_freq)));
-	defineGlobal("fitness_load_N",1-(mean_fitness_mutation_IN*inv_freq + mean_fitness_mutation_NN*(1-inv_freq)));
-
-	defineGlobal("mean_fitness_global_II",(1+S_INV)*Fitness(II_individuals));
-	defineGlobal("mean_fitness_global_IN",(1+H_INV*S_INV)*Fitness(IN_individuals));
-	defineGlobal("mean_fitness_global_NN",1*Fitness(NN_individuals));
 
 	homozygous_mut_II = II_individuals.mutationsFromHaplosomes("homozygous",m1);
 	heterozygous_mut_II = II_individuals.mutationsFromHaplosomes("heterozygous",m1);
@@ -325,6 +314,79 @@ function (void)updateGlobal(void) {   // Updating all global variables
 	defineGlobal("freq_homozygous_mut_IN",homozygous_mutations_number_IN/(homozygous_mutations_number_IN + heterozygous_mutations_number_IN));
 	defineGlobal("freq_homozygous_mut_NN",homozygous_mutations_number_NN/(homozygous_mutations_number_NN + heterozygous_mutations_number_NN));
 
+
+  // Case when inversion is fixed
+	if (inv_freq == 1) {  
+		defineGlobal("n_non_inv_haplosomes",non_inv.size());
+		defineGlobal("n_mut_per_non_inv_haplosome",0/0);
+		defineGlobal("non_inv_marginal_fitness_inversion", 0/0);
+		defineGlobal("n_inv_haplosomes", inv.size());
+		defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
+		defineGlobal("inv_marginal_fitness_inv_inversion", 0/0);
+
+		defineGlobal("mean_fitness_mutation_II", Fitness(II_individuals));
+		defineGlobal("mean_fitness_mutation_IN",0/0);
+		defineGlobal("mean_fitness_mutation_NN", 0/0);
+
+		defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*inv_freq + mean_fitness_mutation_IN*(1-inv_freq)));
+		defineGlobal("fitness_load_N",0/0);
+
+		defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals));
+		defineGlobal("mean_fitness_global_IN", 0/0);
+		defineGlobal("mean_fitness_global_NN", 0/0);
+
+		defineGlobal("covariance_mutation_inversion_I", 0/0);
+		defineGlobal("covariance_mutation_inversion_N",0/0);
+	}
+	// Case when the inversion is lost
+	else { 
+		if (inv_freq == 0) {
+			defineGlobal("n_non_inv_haplosomes",non_inv.size());
+			defineGlobal("n_mut_per_non_inv_haplosome", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+			defineGlobal("non_inv_marginal_fitness_inversion", 0/0);
+			defineGlobal("n_inv_haplosomes", inv.size());
+			defineGlobal("n_mut_per_inv_haplosome", 0/0);
+			defineGlobal("inv_marginal_fitness_inv_inversion", 0/0);
+
+			defineGlobal("mean_fitness_mutation_II",0/0);
+			defineGlobal("mean_fitness_mutation_IN", 0/0);
+			defineGlobal("mean_fitness_mutation_NN",Fitness(NN_individuals));
+
+			defineGlobal("fitness_load_I", 0/0);
+			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*inv_freq + mean_fitness_mutation_NN*(1-inv_freq)));
+
+			defineGlobal("mean_fitness_global_II", 0/0);
+			defineGlobal("mean_fitness_global_IN", 0/0);
+			defineGlobal("mean_fitness_global_NN", 1*Fitness(NN_individuals));
+
+			defineGlobal("covariance_mutation_inversion_I",0/0);
+			defineGlobal("covariance_mutation_inversion_N", 0/0);
+		} 
+		// Case of inversion polymorphism
+		else {
+			defineGlobal("n_non_inv_haplosomes",non_inv.size());
+			defineGlobal("n_mut_per_non_inv_haplosome", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+			defineGlobal("non_inv_marginal_fitness_inversion", 1*(1-inv_freq)+(1+H_INV*S_INV)*inv_freq);
+			defineGlobal("n_inv_haplosomes", inv.size());
+			defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
+			defineGlobal("inv_marginal_fitness_inv_inversion", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
+
+			defineGlobal("mean_fitness_mutation_II", Fitness(II_individuals));
+			defineGlobal("mean_fitness_mutation_IN", Fitness(IN_individuals));
+			defineGlobal("mean_fitness_mutation_NN", Fitness(NN_individuals));
+
+			defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*inv_freq + mean_fitness_mutation_IN*(1-inv_freq)));
+			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*inv_freq + mean_fitness_mutation_NN*(1-inv_freq)));
+
+			defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals));
+			defineGlobal("mean_fitness_global_IN", (1+H_INV*S_INV)*Fitness(IN_individuals));
+			defineGlobal("mean_fitness_global_NN", 1*Fitness(NN_individuals));
+
+			defineGlobal("covariance_mutation_inversion_I", inv_freq*(1-inv_freq)*(1-H_INV)*S_INV*(mean_fitness_mutation_II-mean_fitness_mutation_IN));
+			defineGlobal("covariance_mutation_inversion_N", inv_freq*(1-inv_freq)*H_INV*S_INV*(mean_fitness_mutation_IN-mean_fitness_mutation_NN));
+
+		}
+	}
 }
 
 
