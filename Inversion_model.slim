@@ -15,7 +15,7 @@ initialize() {
 	defineConstant("INV_LENGTH",2e3);   // Inversion length
 	defineConstant("INV_START", asInteger(L/2 - INV_LENGTH/2));  // Beginning position of the inversion
 	defineConstant("INV_END", INV_START + INV_LENGTH - 1);  // End position of the inversion
-	defineConstant("Double_Crossover",F);
+	defineConstant("Double_Crossover",F);  // Boolean for inclusion or exclusion of double crossovers
 
 	// -- Demographic parameters --
 	
@@ -97,7 +97,7 @@ initialize() {
 1 early() {
 	// Create subpopulations
 	sim.addSubpop("p1", N1);
-	sim.addSubpop("p2", N2);  // Creating 2 or 3 subpopulations of same size
+	sim.addSubpop("p2", N2);  // Creating 2 or 3 subpopulations
 	if(thirdPopControl==T) sim.addSubpop("p3", N3);
 	
 	// Apply migration rates between populations
@@ -107,43 +107,61 @@ initialize() {
 	// -- Mutation Template Generation --
 
 	target = p1.haplosomes[0];
-	target.addNewDrawnMutation(m1, 0:(L-1));
+	target.addNewDrawnMutation(m1, 0:(L-1));  // Adding mutations on the haplosomes
 	defineConstant("MUT", target.mutations);   // Creating the structure that will be used in all haplosomes
-	target.removeMutations();   // Removing , all haplosomes will be "aa" by default
+	target.removeMutations();   // Removing mutations, all haplosomes will be "aa" by default
 	
 
 	// -- Logging Setup --
 
-	updateGlobal();  // Updating all global variables
+	updateGlobal();  // Creating all global variables used in the logging file
 
 
-	// log results for inversion frequencies
+	// -- Log results --
 	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
 	log.addTick();
-	log.addCustomColumn("inv_freq","inv_freq;");  // Frequency of the inverted arrangement amongst haplosomes
-	log.addCustomColumn("n_non_inv_haplosomes", "n_non_inv_haplosomes;");
-	log.addCustomColumn("n_mut_per_non_inv_haplosome","n_mut_per_non_inv_haplosome;");
-	log.addCustomColumn("n_inv_haplosomes", "n_inv_haplosomes;");
-	log.addCustomColumn("n_mut_per_inv_haplosome","n_mut_per_inv_haplosome;");
-	log.addCustomColumn("inv_marginal_fitness_inv_inversion","inv_marginal_fitness_inv_inversion;");
-    log.addCustomColumn("non_inv_marginal_fitness_inversion","non_inv_marginal_fitness_inversion;");
-	log.addCustomColumn("mean_fitness_mutation_II","mean_fitness_mutation_II;");
+	log.addCustomColumn("freq_I","freq_I;");  // Frequency of the inverted arrangement amongst haplosomes 
+
+	log.addCustomColumn("freq_II","freq_II;"); // Frequencies of arrangement karyotypes amongst individuals (II representing an inverted homokaryotype, IN a heterokaryotype and NN a non-inverted homokaryotype)
+	log.addCustomColumn("freq_IN","freq_IN;"); 
+	log.addCustomColumn("freq_NN","freq_NN;"); 
+
+	log.addCustomColumn("number_haplosomes_I", "number_haplosomes_I;"); // Number of haplosomes with the inverted arrangement
+	log.addCustomColumn("number_haplosomes_N", "number_haplosomes_N;"); // Number of haplosomes with the non_inverted arrangement
+
+	log.addCustomColumn("number_mutations_I","number_mutations_I;"); // Number of deleterious mutations within the inversion region for an inverted haplosome
+	log.addCustomColumn("number_mutations_N","number_mutations_N;"); // Number of deleterious mutations within the inversion region for a non_inverted haplosome
+	
+	log.addCustomColumn("marginal_fitness_inversion_I","marginal_fitness_inversion_I;"); // Marginal fitness of the inverted arrangement caused by the inversion (without any mutation)
+    log.addCustomColumn("marginal_fitness_inversion_N","marginal_fitness_inversion_N;"); // Marginal fitness of the non-inverted arrangement caused by the inversion (without any mutation)
+
+	log.addCustomColumn("mean_fitness_mutation_II","mean_fitness_mutation_II;"); // Mean fitnesses caused by mutation (independently from the inversion) in arrangement karyotypes
 	log.addCustomColumn("mean_fitness_mutation_IN","mean_fitness_mutation_IN;");
 	log.addCustomColumn("mean_fitness_mutation_NN","mean_fitness_mutation_NN;");
-	log.addCustomColumn("fitness_load_I","fitness_load_I;");
+
+	log.addCustomColumn("fitness_load_I","fitness_load_I;"); // Fitness loads caused by deleterious mutations (independently from the inversion) in arrangements    (= 1 - marginal fitnesses caused by mutations only)
 	log.addCustomColumn("fitness_load_N","fitness_load_N;");
-	log.addCustomColumn("freq_homozygous_mut_II","freq_homozygous_mut_II;");
+
+	log.addCustomColumn("freq_homozygous_mut_II","freq_homozygous_mut_II;"); // Frequencies of homozygous positions for the deleterious mutations within the inversion region
 	log.addCustomColumn("freq_homozygous_mut_IN","freq_homozygous_mut_IN;");
 	log.addCustomColumn("freq_homozygous_mut_NN","freq_homozygous_mut_NN;");
-	log.addCustomColumn("mean_fitness_global_II","mean_fitness_global_II;");
+
+	log.addCustomColumn("mean_fitness_global_II","mean_fitness_global_II;"); // Global mean fitnesses (including both mutations and the inversion) in arrangement karyotypes
 	log.addCustomColumn("mean_fitness_global_IN","mean_fitness_global_IN;");
 	log.addCustomColumn("mean_fitness_global_NN","mean_fitness_global_NN;");
-	log.addCustomColumn("covariance_mutation_inversion_I","covariance_mutation_inversion_I;");
+
+	log.addCustomColumn("covariance_mutation_inversion_I","covariance_mutation_inversion_I;"); // Covariances between inversion and mutation fitnesses within an arrangement
 	log.addCustomColumn("covariance_mutation_inversion_N","covariance_mutation_inversion_N;");
+
+	log.addCustomColumn("covariance_out_of_marginal_fitness_I","covariance_out_of_marginal_fitness_I;"); // Relative strength of the interaction between mutation and inversion comparing with the marginal fitnesses of both forces independently for both arrangements
+	log.addCustomColumn("covariance_out_of_marginal_fitness_N","covariance_out_of_marginal_fitness_N;");
+
+	log.addCustomColumn("effective_dominance","effective_dominance;"); // Effective dominance (dominance coefficient corresponding to a situation where all the fitness variability can be explained by the inversion)
+	log.addCustomColumn("dominance_variance","dominance_variance;"); // Variance that is not explained by additive fitness effects
 	
 
 
-	// proportion of simulations with inverted haplosomes still existing (in Bash)
+	// Proportion of simulations with inverted haplosomes still existing (in Bash)
 }
 
 T_INV_scaled late() {
@@ -256,6 +274,8 @@ T_MAX_scaled late() {
 
  // -- Utility functions --
 
+
+ // Calculating mean fitnesses caused by mutations in a population
 function (float)Fitness(No<Individual> individuals) {
 	if (individuals.size() == 0) {
 		return(0/0);
@@ -266,39 +286,49 @@ function (float)Fitness(No<Individual> individuals) {
 		heterozygous_mut = individuals[i-1].mutationsFromHaplosomes("heterozygous",m1);
 		homozygous_mutations_number = homozygous_mut[(homozygous_mut.position >= INV_START) & (homozygous_mut.position <= INV_END)].size();
 		heterozygous_mutations_number = heterozygous_mut[(heterozygous_mut.position >= INV_START) & (heterozygous_mut.position <= INV_END)].size();
-		a[i-1] = (1+S)^(homozygous_mutations_number)*(1+H*S)^(heterozygous_mutations_number);
+		a[i-1] = (1+S)^(homozygous_mutations_number)*(1+H*S)^(heterozygous_mutations_number);   // Calculating fitnesses corresponding to individuals
 	}
 	return(mean(a));
 }
 
 
-function (void)updateGlobal(void) {   // Updating all global variables
+function (void)updateGlobal(void) {     // Updating all global variables
+
 	p2Individuals = sim.subpopulations[1].individuals;
+
 	II_individuals = p2Individuals[p2Individuals.countOfMutationsOfType(m3) == 2];     // Separating II, IN and NN individuals
 	IN_individuals = p2Individuals[p2Individuals.countOfMutationsOfType(m3) == 1];
 	NN_individuals = p2Individuals[p2Individuals.countOfMutationsOfType(m3) == 0];
+
 	haplosomes = p2.haplosomes;
 	counts = haplosomes.countOfMutationsOfType(m3);
-	inv = haplosomes[counts > 0];
+
+	inv = haplosomes[counts > 0];  // Separating inverted and non_inverted haplosomes
 	non_inv = haplosomes[counts == 0];
-	pos_inv = inv.positionsOfMutationsOfType(m1); 
+
+	pos_inv = inv.positionsOfMutationsOfType(m1);   // Identifying the positions of mutations for both arrangements
 	pos_non_inv = non_inv.positionsOfMutationsOfType(m1);
 
-	defineGlobal("inv_freq", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
+	defineGlobal("freq_I", sum(p2Individuals.countOfMutationsOfType(m3))/(p2.haplosomes.size()));
+	defineGlobal("freq_II",II_individuals.size()/(p2Individuals.size()));
+	defineGlobal("freq_IN",IN_individuals.size()/(p2Individuals.size()));
+	defineGlobal("freq_NN",NN_individuals.size()/(p2Individuals.size()));
 
-	homozygous_mut_II = II_individuals.mutationsFromHaplosomes("homozygous",m1);
+	homozygous_mut_II = II_individuals.mutationsFromHaplosomes("homozygous",m1);  // Identifying the homozygous and heterozygous positions for mutations in inverted homokaryotypes
 	heterozygous_mut_II = II_individuals.mutationsFromHaplosomes("heterozygous",m1);
 	all_mut_II = II_individuals.mutationsFromHaplosomes("all",m1);
 	
-	homozygous_mut_IN = IN_individuals.mutationsFromHaplosomes("homozygous",m1);
+	homozygous_mut_IN = IN_individuals.mutationsFromHaplosomes("homozygous",m1); // Identifying the homozygous and heterozygous positions for mutations in heterokaryotypes
 	heterozygous_mut_IN = IN_individuals.mutationsFromHaplosomes("heterozygous",m1);
 	all_mut_IN = IN_individuals.mutationsFromHaplosomes("all",m1);
 	
-	homozygous_mut_NN = NN_individuals.mutationsFromHaplosomes("homozygous",m1);
+	homozygous_mut_NN = NN_individuals.mutationsFromHaplosomes("homozygous",m1); // Identifying the homozygous and heterozygous positions for mutations in non-inverted homokaryotypes
 	heterozygous_mut_NN = NN_individuals.mutationsFromHaplosomes("heterozygous",m1);
 	all_mut_NN = NN_individuals.mutationsFromHaplosomes("all",m1);
 
-	homozygous_mutations_number_II = homozygous_mut_II[(homozygous_mut_II.position >= INV_START) & (homozygous_mut_II.position <= INV_END)].size();
+	// Making all the counts for those positions
+
+	homozygous_mutations_number_II = homozygous_mut_II[(homozygous_mut_II.position >= INV_START) & (homozygous_mut_II.position <= INV_END)].size(); 
 	heterozygous_mutations_number_II = heterozygous_mut_II[(heterozygous_mut_II.position >= INV_START) & (heterozygous_mut_II.position <= INV_END)].size();
 	total_mutations_number_II = all_mut_II[(all_mut_II.position >= INV_START) & (all_mut_II.position <= INV_END)];
 	
@@ -310,25 +340,29 @@ function (void)updateGlobal(void) {   // Updating all global variables
 	heterozygous_mutations_number_NN = heterozygous_mut_NN[(heterozygous_mut_NN.position >= INV_START) & (heterozygous_mut_NN.position <= INV_END)].size();
 	all_mut_NN = all_mut_NN[(all_mut_NN.position >= INV_START) & (all_mut_NN.position <= INV_END)];
 
-	defineGlobal("freq_homozygous_mut_II",homozygous_mutations_number_II/(homozygous_mutations_number_II + heterozygous_mutations_number_II));
+	defineGlobal("freq_homozygous_mut_II",homozygous_mutations_number_II/(homozygous_mutations_number_II + heterozygous_mutations_number_II)); // Frequencies of homozygous positions amongst those with mutations in arrangement karyotypes
 	defineGlobal("freq_homozygous_mut_IN",homozygous_mutations_number_IN/(homozygous_mutations_number_IN + heterozygous_mutations_number_IN));
 	defineGlobal("freq_homozygous_mut_NN",homozygous_mutations_number_NN/(homozygous_mutations_number_NN + heterozygous_mutations_number_NN));
 
 
-  // Case when inversion is fixed
-	if (inv_freq == 1) {  
-		defineGlobal("n_non_inv_haplosomes",non_inv.size());
-		defineGlobal("n_mut_per_non_inv_haplosome",0/0);
-		defineGlobal("non_inv_marginal_fitness_inversion", 0/0);
-		defineGlobal("n_inv_haplosomes", inv.size());
-		defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
-		defineGlobal("inv_marginal_fitness_inv_inversion", 0/0);
+  // Case when inversion is fixed (see the inversion polymorphism case for explanations)
+
+	if (freq_I == 1) {  // Some variables make no sense if there is no non-inverted haplosome, these will not be plotted
+
+		defineGlobal("number_haplosomes_I", inv.size());
+		defineGlobal("number_haplosomes_N",non_inv.size());
+
+		defineGlobal("number_mutations_I", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
+		defineGlobal("number_mutations_N",0/0);
+
+		defineGlobal("marginal_fitness_inversion_I", 0/0);
+		defineGlobal("marginal_fitness_inversion_N", 0/0);
 
 		defineGlobal("mean_fitness_mutation_II", Fitness(II_individuals));
 		defineGlobal("mean_fitness_mutation_IN",0/0);
 		defineGlobal("mean_fitness_mutation_NN", 0/0);
 
-		defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*inv_freq + mean_fitness_mutation_IN*(1-inv_freq)));
+		defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*freq_I + mean_fitness_mutation_IN*(1-freq_I)));
 		defineGlobal("fitness_load_N",0/0);
 
 		defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals));
@@ -337,23 +371,35 @@ function (void)updateGlobal(void) {   // Updating all global variables
 
 		defineGlobal("covariance_mutation_inversion_I", 0/0);
 		defineGlobal("covariance_mutation_inversion_N",0/0);
+
+		defineGlobal("covariance_out_of_marginal_fitness_I",0/0);
+		defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
+
+		defineGlobal("covariance_out_of_marginal_fitness_I",0/0);
+		defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
+
+		defineGlobal("effective_dominance",0/0);
+		defineGlobal("dominance_variance",0/0);
 	}
 	// Case when the inversion is lost
 	else { 
-		if (inv_freq == 0) {
-			defineGlobal("n_non_inv_haplosomes",non_inv.size());
-			defineGlobal("n_mut_per_non_inv_haplosome", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
-			defineGlobal("non_inv_marginal_fitness_inversion", 0/0);
-			defineGlobal("n_inv_haplosomes", inv.size());
-			defineGlobal("n_mut_per_inv_haplosome", 0/0);
-			defineGlobal("inv_marginal_fitness_inv_inversion", 0/0);
+		if (freq_I == 0) {   // Some variables make no sense if there is no inversion, these will not be plotted
+			
+			defineGlobal("number_haplosomes_I", inv.size());
+			defineGlobal("number_haplosomes_N",non_inv.size());
+
+			defineGlobal("number_mutations_I", 0/0);
+			defineGlobal("number_mutations_N", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+
+			defineGlobal("marginal_fitness_inversion_I", 0/0);
+			defineGlobal("marginal_fitness_inversion_N", 0/0);
 
 			defineGlobal("mean_fitness_mutation_II",0/0);
 			defineGlobal("mean_fitness_mutation_IN", 0/0);
 			defineGlobal("mean_fitness_mutation_NN",Fitness(NN_individuals));
 
 			defineGlobal("fitness_load_I", 0/0);
-			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*inv_freq + mean_fitness_mutation_NN*(1-inv_freq)));
+			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*freq_I + mean_fitness_mutation_NN*(1-freq_I)));
 
 			defineGlobal("mean_fitness_global_II", 0/0);
 			defineGlobal("mean_fitness_global_IN", 0/0);
@@ -361,29 +407,47 @@ function (void)updateGlobal(void) {   // Updating all global variables
 
 			defineGlobal("covariance_mutation_inversion_I",0/0);
 			defineGlobal("covariance_mutation_inversion_N", 0/0);
+
+			defineGlobal("covariance_out_of_marginal_fitness_I",0/0);
+			defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
+
+			defineGlobal("covariance_out_of_marginal_fitness_I",0/0);
+			defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
+
+			defineGlobal("effective_dominance",0/0);
+			defineGlobal("dominance_variance",0/0);
 		} 
 		// Case of inversion polymorphism
 		else {
-			defineGlobal("n_non_inv_haplosomes",non_inv.size());
-			defineGlobal("n_mut_per_non_inv_haplosome", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
-			defineGlobal("non_inv_marginal_fitness_inversion", 1*(1-inv_freq)+(1+H_INV*S_INV)*inv_freq);
-			defineGlobal("n_inv_haplosomes", inv.size());
-			defineGlobal("n_mut_per_inv_haplosome", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
-			defineGlobal("inv_marginal_fitness_inv_inversion", (1+S_INV)*inv_freq + (1+H_INV*S_INV)*(1-inv_freq));
 
-			defineGlobal("mean_fitness_mutation_II", Fitness(II_individuals));
+			defineGlobal("number_haplosomes_I", inv.size());   // Number of haplosomes per arrangement
+			defineGlobal("number_haplosomes_N",non_inv.size());
+
+			defineGlobal("number_mutations_I", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));  // Number of mutations within the inversion region for both arrangements
+			defineGlobal("number_mutations_N", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
+
+			defineGlobal("marginal_fitness_inversion_I", (1+S_INV)*freq_I + (1+H_INV*S_INV)*(1-freq_I)); // Marginal fitness only with inversion only (no mutations) for both arrangements
+			defineGlobal("marginal_fitness_inversion_N", 1*(1-freq_I)+(1+H_INV*S_INV)*freq_I); 
+
+			defineGlobal("mean_fitness_mutation_II", Fitness(II_individuals));  // Mean fitness linked to mutations only (no inversion) for different arrangement karyotypes
 			defineGlobal("mean_fitness_mutation_IN", Fitness(IN_individuals));
 			defineGlobal("mean_fitness_mutation_NN", Fitness(NN_individuals));
 
-			defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*inv_freq + mean_fitness_mutation_IN*(1-inv_freq)));
-			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*inv_freq + mean_fitness_mutation_NN*(1-inv_freq)));
+			defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*freq_I + mean_fitness_mutation_IN*(1-freq_I))); // Fitness load linked to mutations only (no inversion) for both arrangements
+			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*freq_I + mean_fitness_mutation_NN*(1-freq_I)));
 
-			defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals));
+			defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals)); // Global mean fitness (inversion + mutations) for differents arrangement karyotypes
 			defineGlobal("mean_fitness_global_IN", (1+H_INV*S_INV)*Fitness(IN_individuals));
 			defineGlobal("mean_fitness_global_NN", 1*Fitness(NN_individuals));
 
-			defineGlobal("covariance_mutation_inversion_I", inv_freq*(1-inv_freq)*(1-H_INV)*S_INV*(mean_fitness_mutation_II-mean_fitness_mutation_IN));
-			defineGlobal("covariance_mutation_inversion_N", inv_freq*(1-inv_freq)*H_INV*S_INV*(mean_fitness_mutation_IN-mean_fitness_mutation_NN));
+			defineGlobal("covariance_mutation_inversion_I", freq_I*(1-freq_I)*(1-H_INV)*S_INV*(mean_fitness_mutation_II-mean_fitness_mutation_IN)); // Covariance between mutation and inversion for both arrangements
+			defineGlobal("covariance_mutation_inversion_N", freq_I*(1-freq_I)*H_INV*S_INV*(mean_fitness_mutation_IN-mean_fitness_mutation_NN));
+
+			defineGlobal("covariance_out_of_marginal_fitness_I",covariance_mutation_inversion_I/(marginal_fitness_inversion_I*(1-fitness_load_I))); // Relative strength of the interaction between mutation and inversion comparing with the marginal fitnesses of both forces independently for both arrangements
+			defineGlobal("covariance_out_of_marginal_fitness_N",covariance_mutation_inversion_N/(marginal_fitness_inversion_N*(1-fitness_load_N)));
+
+			defineGlobal("effective_dominance",((mean_fitness_global_IN)/(mean_fitness_global_NN) -1)/S_INV);
+			defineGlobal("dominance_variance",(mean_fitness_global_NN-1)^2 + (mean_fitness_global_IN-(1+S_INV*H_INV))^2 + (mean_fitness_global_II-(1+S_INV))^2);
 
 		}
 	}
