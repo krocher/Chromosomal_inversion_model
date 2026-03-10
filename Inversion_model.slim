@@ -4,12 +4,12 @@ initialize() {
 	setSeed(12345);
 
 	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
-	defineConstant("FileName","output_test_K1_20e3_K2_20e3_chrom_length_3e6_inv_length_2e6_recrate_1e8_mutrate_1e8_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv");  // Suffix for the name of the generated files
+	defineConstant("FileName","output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv");  // Suffix for the name of the generated files
 	
 	defineConstant("Q", 5.0);  // Scaling factor
 
-	defineGlobal("Mu",1e-5);  // Mutation rate
-	defineGlobal("R",1e-5);   // Recombination rate
+	if (!exists("Mu")) defineConstant("Mu",1e-5);  // Mutation rate
+	defineConstant("R",1e-5);   // Recombination rate
 	defineConstant("L",3e3);   // Sequence length
 	defineConstant("I",0.05);  // Initial proportion of inverted arrangements in population 2
 	defineConstant("INV_LENGTH",2e3);   // Inversion length
@@ -19,46 +19,46 @@ initialize() {
 
 	// -- Demographic parameters --
 	
-	defineGlobal("N1",20e3);  // Population sizes
-	defineGlobal("N2",20e3);
-	defineGlobal("N3",N2);
-	defineGlobal("m12",0.005);   // Migration rate from population P1 to P2
-	defineGlobal("m13",m12);   // Migration rate from population P1 to P3
+	defineConstant("N1",20e3);  // Population sizes
+	defineConstant("N2",20e3);
+	defineConstant("N3",N2);
+	defineConstant("m12",0.005);   // Migration rate from population P1 to P2
+	defineConstant("m13",m12);   // Migration rate from population P1 to P3
 	defineConstant("thirdPopControl", F);	// Boolean describing whether there is a third population or not
 
 	// -- Deleterious Mutations --
 
-	defineGlobal("H",0.0);  // Dominance of the mutations
-	defineGlobal("S", -0.001); // Selection coefficient for the mutations
+	defineConstant("H",0.0);  // Dominance of the mutations
+	defineConstant("S", -0.001); // Selection coefficient for the mutations
 
 	// -- Inversion parameters --
-	defineGlobal("H_INV",0.5);  // Dominance of the inversion
-	defineGlobal("S_INV", 0.05); // Selection coefficient for the inversion
+	defineConstant("H_INV",0.5);  // Dominance of the inversion
+	defineConstant("S_INV", 0.05); // Selection coefficient for the inversion
 
 
 	// -- Time parameters
-	defineGlobal("T_MAX", 150e3); // Time of simulation end
-	defineGlobal("LOG_INTERVAL", 5e3); // Time interval for logging inversion frequencies and number of deleterious mutations
-	defineGlobal("T_INV", 50e3);  // Burn-in time before introducing inversions
+	defineConstant("T_MAX", 150e3); // Time of simulation end
+	defineConstant("LOG_INTERVAL", 5e3); // Time interval for logging inversion frequencies and number of deleterious mutations
+	defineConstant("T_INV", 50e3);  // Burn-in time before introducing inversions
 	
 
 	// --- Scaled Parameters --- 
 
 	// Population & Time: Divide by Q
-	defineGlobal("N1", asInteger(N1 / Q));
-	defineGlobal("N2", asInteger(N2 / Q));
-	defineGlobal("N3", asInteger(N3 / Q));
+	defineConstant("N1_scaled", asInteger(N1 / Q));
+	defineConstant("N2_scaled", asInteger(N2 / Q));
+	defineConstant("N3_scaled", asInteger(N3 / Q));
     defineConstant("T_MAX_scaled", asInteger(T_MAX / Q));
 	defineConstant("LOG_INTERVAL_scaled", asInteger(LOG_INTERVAL / Q));
     defineConstant("T_INV_scaled", asInteger(T_INV / Q));
 
 	// Rates & Selection: Multiply by Q
-	defineGlobal("S", S * Q);
-    defineGlobal("S_INV", S_INV * Q);
-    defineGlobal("Mu", Mu * Q);
-    defineGlobal("R", R * Q);
-	defineGlobal("m12", m12 * Q);
-	defineGlobal("m13", m13 * Q);
+	defineConstant("S_scaled", S * Q);
+    defineConstant("S_INV_scaled", S_INV * Q);
+    defineConstant("Mu_scaled", Mu * Q);
+    defineConstant("R_scaled", R * Q);
+	defineConstant("m12_scaled", m12 * Q);
+	defineConstant("m13_scaled", m13 * Q);
 
 	// Safety check: ensure fitness is strictly positive
 	if (1+S*Q <= 0)	stop("Scaling Error: Scaled deleterious selection coefficient makes individuals lethal (1+S<=0).");
@@ -67,17 +67,17 @@ initialize() {
 
 	// -- Mutation Type Definitions: to model biallelic loci --
 	
-	initializeMutationType("m1", H, "f", S);   // Defining deleterious mutations
+	initializeMutationType("m1", H, "f", S_scaled);   // Defining deleterious mutations
 	m1.convertToSubstitution = F;    // Allowing loci to have back-mutations after one allele is fixed
 	m1.color = "red";
 	
-	initializeMutationType("m2",H,"f",S);   // Mutations that will be created in the haplosome
+	initializeMutationType("m2",H,"f",S_scaled);   // Mutations that will be created in the haplosome
 	m2.convertToSubstitution = F;      // Same as earlier
 	m2.color = "cornflowerblue";
 	
 
 	// Markers for the chromosomal inversion boundaries
-	initializeMutationType("m3",H_INV,"f",S_INV);   // Start marker
+	initializeMutationType("m3",H_INV,"f",S_INV_scaled);   // Start marker
 	initializeMutationType("m4",H_INV,"f",0.0);   // End marker
 	c(m3,m4).convertToSubstitution = T;    // Inversion can get fixed, replace by F if we wanted double/back-inversions
 	c(m3,m4).color = "yellow";
@@ -87,22 +87,22 @@ initialize() {
 	initializeGenomicElement(g1, 0,L-1); // uniform chromosome with uniform recombination
 	
 
-	initializeMutationRate(Mu);
+	initializeMutationRate(Mu_scaled);
 
-	initializeRecombinationRate(R);
+	initializeRecombinationRate(R_scaled);
 
 }
 
 
 1 early() {
 	// Create subpopulations
-	sim.addSubpop("p1", N1);
-	sim.addSubpop("p2", N2);  // Creating 2 or 3 subpopulations
-	if(thirdPopControl==T) sim.addSubpop("p3", N3);
+	sim.addSubpop("p1", N1_scaled);
+	sim.addSubpop("p2", N2_scaled);  // Creating 2 or 3 subpopulations
+	if(thirdPopControl==T) sim.addSubpop("p3", N3_scaled);
 	
 	// Apply migration rates between populations
-	p2.setMigrationRates(p1,m12);    // Setting the migration rate from the continent to the island
-	if(thirdPopControl==T) p3.setMigrationRates(p1, m13);   	// migration p1 -> p3 (non-inversion island)
+	p2.setMigrationRates(p1,m12_scaled);    // Setting the migration rate from the continent to the island
+	if(thirdPopControl==T) p3.setMigrationRates(p1, m13_scaled);   	// migration p1 -> p3 (non-inversion island)
 
 	// -- Mutation Template Generation --
 
@@ -118,7 +118,7 @@ initialize() {
 
 
 	// -- Log results --
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
+	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Mu",Mu,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
 	log.addTick();
 	log.addCustomColumn("freq_I","freq_I;");  // Frequency of the inverted arrangement amongst haplosomes 
 
@@ -165,7 +165,7 @@ initialize() {
 }
 
 T_INV_scaled late() {
-	inverted = sample(p2.haplosomes,asInteger(2*I*N2));    // Inverting some of the haplosomes
+	inverted = sample(p2.haplosomes,asInteger(2*I*N2_scaled));    // Inverting some of the haplosomes
 	inverted.addNewDrawnMutation(m3, INV_START);
 	inverted.addNewDrawnMutation(m4, INV_END);
 }
@@ -286,7 +286,7 @@ function (float)Fitness(No<Individual> individuals) {
 		heterozygous_mut = individuals[i-1].mutationsFromHaplosomes("heterozygous",m1);
 		homozygous_mutations_number = homozygous_mut[(homozygous_mut.position >= INV_START) & (homozygous_mut.position <= INV_END)].size();
 		heterozygous_mutations_number = heterozygous_mut[(heterozygous_mut.position >= INV_START) & (heterozygous_mut.position <= INV_END)].size();
-		a[i-1] = (1+S)^(homozygous_mutations_number)*(1+H*S)^(heterozygous_mutations_number);   // Calculating fitnesses corresponding to individuals
+		a[i-1] = (1+S_scaled)^(homozygous_mutations_number)*(1+H*S_scaled)^(heterozygous_mutations_number);   // Calculating fitnesses corresponding to individuals
 	}
 	return(mean(a));
 }
@@ -365,7 +365,7 @@ function (void)updateGlobal(void) {     // Updating all global variables
 		defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*freq_I + mean_fitness_mutation_IN*(1-freq_I)));
 		defineGlobal("fitness_load_N",0/0);
 
-		defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals));
+		defineGlobal("mean_fitness_global_II", (1+S_INV_scaled)*Fitness(II_individuals));
 		defineGlobal("mean_fitness_global_IN", 0/0);
 		defineGlobal("mean_fitness_global_NN", 0/0);
 
@@ -426,8 +426,8 @@ function (void)updateGlobal(void) {     // Updating all global variables
 			defineGlobal("number_mutations_I", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));  // Number of mutations within the inversion region for both arrangements
 			defineGlobal("number_mutations_N", sum((pos_non_inv >= INV_START) & (pos_non_inv <= INV_END))/(non_inv.size()));
 
-			defineGlobal("marginal_fitness_inversion_I", (1+S_INV)*freq_I + (1+H_INV*S_INV)*(1-freq_I)); // Marginal fitness only with inversion only (no mutations) for both arrangements
-			defineGlobal("marginal_fitness_inversion_N", 1*(1-freq_I)+(1+H_INV*S_INV)*freq_I); 
+			defineGlobal("marginal_fitness_inversion_I", (1+S_INV_scaled)*freq_I + (1+H_INV*S_INV_scaled)*(1-freq_I)); // Marginal fitness only with inversion only (no mutations) for both arrangements
+			defineGlobal("marginal_fitness_inversion_N", 1*(1-freq_I)+(1+H_INV*S_INV_scaled)*freq_I); 
 
 			defineGlobal("mean_fitness_mutation_II", Fitness(II_individuals));  // Mean fitness linked to mutations only (no inversion) for different arrangement karyotypes
 			defineGlobal("mean_fitness_mutation_IN", Fitness(IN_individuals));
@@ -436,18 +436,18 @@ function (void)updateGlobal(void) {     // Updating all global variables
 			defineGlobal("fitness_load_I", 1-(mean_fitness_mutation_II*freq_I + mean_fitness_mutation_IN*(1-freq_I))); // Fitness load linked to mutations only (no inversion) for both arrangements
 			defineGlobal("fitness_load_N", 1-(mean_fitness_mutation_IN*freq_I + mean_fitness_mutation_NN*(1-freq_I)));
 
-			defineGlobal("mean_fitness_global_II", (1+S_INV)*Fitness(II_individuals)); // Global mean fitness (inversion + mutations) for differents arrangement karyotypes
-			defineGlobal("mean_fitness_global_IN", (1+H_INV*S_INV)*Fitness(IN_individuals));
+			defineGlobal("mean_fitness_global_II", (1+S_INV_scaled)*Fitness(II_individuals)); // Global mean fitness (inversion + mutations) for differents arrangement karyotypes
+			defineGlobal("mean_fitness_global_IN", (1+H_INV*S_INV_scaled)*Fitness(IN_individuals));
 			defineGlobal("mean_fitness_global_NN", 1*Fitness(NN_individuals));
 
-			defineGlobal("covariance_mutation_inversion_I", freq_I*(1-freq_I)*(1-H_INV)*S_INV*(mean_fitness_mutation_II-mean_fitness_mutation_IN)); // Covariance between mutation and inversion for both arrangements
-			defineGlobal("covariance_mutation_inversion_N", freq_I*(1-freq_I)*H_INV*S_INV*(mean_fitness_mutation_IN-mean_fitness_mutation_NN));
+			defineGlobal("covariance_mutation_inversion_I", freq_I*(1-freq_I)*(1-H_INV)*S_INV_scaled*(mean_fitness_mutation_II-mean_fitness_mutation_IN)); // Covariance between mutation and inversion for both arrangements
+			defineGlobal("covariance_mutation_inversion_N", freq_I*(1-freq_I)*H_INV*S_INV_scaled*(mean_fitness_mutation_IN-mean_fitness_mutation_NN));
 
 			defineGlobal("covariance_out_of_marginal_fitness_I",covariance_mutation_inversion_I/(marginal_fitness_inversion_I*(1-fitness_load_I))); // Relative strength of the interaction between mutation and inversion comparing with the marginal fitnesses of both forces independently for both arrangements
 			defineGlobal("covariance_out_of_marginal_fitness_N",covariance_mutation_inversion_N/(marginal_fitness_inversion_N*(1-fitness_load_N)));
 
-			defineGlobal("effective_dominance",((mean_fitness_global_IN)/(mean_fitness_global_NN) -1)/S_INV);
-			defineGlobal("dominance_variance",(mean_fitness_global_NN-1)^2 + (mean_fitness_global_IN-(1+S_INV*H_INV))^2 + (mean_fitness_global_II-(1+S_INV))^2);
+			defineGlobal("effective_dominance",((mean_fitness_global_IN)/(mean_fitness_global_NN) -1)/S_INV_scaled);
+			defineGlobal("dominance_variance",(mean_fitness_global_NN-1)^2 + (mean_fitness_global_IN-(1+S_INV_scaled*H_INV))^2 + (mean_fitness_global_II-(1+S_INV_scaled))^2);
 
 		}
 	}
