@@ -2,8 +2,11 @@ rm(list = ls())
 library(dplyr)
 
 Tmax = 30000
+log_interval = 5e3
+q = 5   # Scaling factor
+h = log_interval/q
 
- # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ 90%Inv .csv"
+# File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ 90%Inv .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ WithoutCrossover .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ HigherMutRate .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/freq_ WithCrossover .csv"
@@ -27,7 +30,7 @@ Tmax = 30000
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Inversion_frequency (N=2000)_Degenerescence_behaviour MoreTime (S=0.05, Mu=1e-5) Rep 1 (Seed = 9151250013170199950) Rep 1 .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Mutation_Selection equilibrium (N=5000) (Mu=1e-5,S=-0.01) Rep 1 .csv"
 # File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ Freq Equilibrium 0.2-0.4 Rep 1 .csv"
-File = "/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ output_test_K1_20e3_K2_20e3_chrom_length_3e6_inv_length_2e6_recrate_1e8_mutrate_1e8_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv Rep 1 .csv"
+File = paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv Mu ","5.0e-05 ","Rep ","2"," .csv", sep ="")
 
 inversions <- read.csv(File, stringsAsFactors = FALSE)
 
@@ -62,9 +65,96 @@ non_inverted_max_fitness <- max(as.numeric(marginal_fitness_N))
 max = max(inverted_max_mut,non_inverted_max_mut)
 max_fitness = max(inverted_max_fitness,non_inverted_max_fitness)
 
+
+# Calculating the growth rate of mutations
+
+
+n_I = length(inversions$number_mutations_I)
+n_N = length(inversions$number_mutations_N)
+growth_rate_I = (as.numeric(n_mut_per_inv_no_NANs [2:n_I]) - as.numeric(n_mut_per_inv_no_NANs [1:(n_I-1)]))/h
+growth_rate_N = (as.numeric(inversions$number_mutations_N[2:n_N]) - as.numeric(inversions$number_mutations_N[1:(n_N-1)]))/h
+mean(growth_rate_I)
+mean(growth_rate_N)
+
+dev.off()
+
+## Plotting summary statistics for mutation rate
+Mu = c("1.0e-06","5.0e-06","1.0e-05","5.0e-05")
+
+growth_rate_I_matrix = matrix(nrow = 5, ncol = 4)
+growth_rate_N_matrix = matrix(nrow = 5, ncol = 4)
+dominance_variance_matrix = matrix(nrow = 5, ncol = 4)
+
+overall_growth_I = 1:5
+overall_growth_N = 1:5
+mean_growth_rates_I = 1:4
+mean_growth_rates_N = 1:4
+mean_growth_I = 1:4
+mean_growth_N = 1:4
+
+for (i in (1:4)) {
+  for (Rep in (1:5)) {
+    File = paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_ output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv Mu ",Mu[i]," Rep ",Rep," .csv", sep ="")
+    
+    inversions <- read.csv(File, stringsAsFactors = FALSE)
+    
+    n_mut_per_inv_no_NANs = inversions$number_mutations_I
+    for (j in 1:length(n_mut_per_inv_no_NANs)) {
+      if (inversions$number_mutations_I[j] == "NAN") {
+        n_mut_per_inv_no_NANs[j] <- as.numeric(0)
+      }
+    }
+    
+    n_I = length(inversions$number_mutations_I)
+    n_N = length(inversions$number_mutations_N)
+    growth_rate_I = (as.numeric(n_mut_per_inv_no_NANs [2:n_I]) - as.numeric(n_mut_per_inv_no_NANs [1:(n_I-1)]))/h
+    growth_rate_N = (as.numeric(inversions$number_mutations_N[2:n_N]) - as.numeric(inversions$number_mutations_N[1:(n_N-1)]))/h
+    overall_growth_I[Rep] = (as.numeric(n_mut_per_inv_no_NANs[n_I]) - as.numeric(n_mut_per_inv_no_NANs[10]))/(h*(n_I-10))
+    overall_growth_N[Rep] = (as.numeric(inversions$number_mutations_N[n_N]) - as.numeric(n_mut_per_inv_no_NANs[10]))/(h*(n_N-10))
+    
+    n = 10  ## first n after inversion
+    
+    growth_rate_I_matrix[Rep,i] <- mean(growth_rate_I[n:length(growth_rate_I)])
+    growth_rate_N_matrix[Rep,i] <- mean(growth_rate_N[n:length(growth_rate_N)])
+  }
+  mean_growth_rates_I[i] = mean(growth_rate_I_matrix[,i])
+  mean_growth_rates_N[i] = mean(growth_rate_N_matrix[,i])
+  mean_growth_I[i] = mean(overall_growth_I)
+  mean_growth_N[i] = mean(overall_growth_N)
+}
+
+par(mfrow = c(1,2))
+
+plot(x = Mu, y = mean_growth_rates_I , col = "black", xlab = "Mutation rate", ylab = "Mutation growth rates", main = "Mean of mutation growth rates after inversion",ylim = c(-0.05,0.25))
+points(x = Mu, y = mean_growth_rates_N, col = "blue")
+legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
+       col=c("blue", "black"), lty=1:2, cex=0.8)
+
+plot(x = Mu, y = mean_growth_I , col = "black", xlab = "Mutation rate", ylab = "Mutation growth rates", main = "Mean mutation growth rate after inversion",ylim = c(-0.05,0.25))
+points(x = Mu, y = mean_growth_N, col = "blue")
+legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
+       col=c("blue", "black"), lty=1:2, cex=0.8)
+
+
+par(mfrow = c(5,4))
+
+plot(x = inversions$tick[1:(T-1)], y = mean(growth_rate_I_matrix), col = "black", type = "l", xlab = "Generations", ylab = "Mutation growth rates", main = "Evolution of the mutation growth rates",xlim = c(0,Tmax),ylim = c(-0.05,0.2))
+lines(x = inversions$tick[1:(T-1)], y = mean(growth_rate_N), col = "blue", type = "l")
+legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
+       col=c("blue", "black"), lty=1:2, cex=0.8)
+
+for (i in (1:4)) {
+  for (Rep in (1:5)) {
+    plot(x = inversions$tick, y = inversions$dominance_variance, col = "green", type = "l", xlab = "Generations", ylab = "Dominance variance", main = "Evolution of the dominance variance",xlim = c(0,Tmax))
+  }
+}
+
+plot(x = inversions$tick, y = inversions$effective_dominance, col = "red", type = "l", xlab = "Generations", ylab = "Effective dominance", main = "Evolution of the effective dominance",xlim = c(0,Tmax))
+
+
 ## Plotting all results
 
-par(mfrow = c(3,4))
+par(mfrow = c(3,5))
 
 plot(x = inversions$tick, y = inversions$freq_I, col = "red", type = "l", xlab = "Generations", ylab = "Frequency of the inversion", main = "Inversion frequency evolution",xlim = c(0,Tmax))
 
@@ -82,13 +172,19 @@ legend("topleft", legend=c("NN","IN","II"),
        col=c("blue", "violet","black"), lty=1:2, cex=0.8)
 
 
-plot(x = inversions$tick, y = inversions$fitness_load_I, col = "black", type = "l", xlab = "Generations", ylab = "Fitness load", main = "Evolution of the fitness load of haplosomes",xlim = c(0,Tmax),ylim = c(0,0.4))
+plot(x = inversions$tick, y = inversions$fitness_load_I, col = "black", type = "l", xlab = "Generations", ylab = "Fitness load", main = "Evolution of the fitness load of haplosomes",xlim = c(0,Tmax))
 lines(x = inversions$tick, y = inversions$fitness_load_N, col = "blue", type = "l")
 legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
        col=c("blue", "black"), lty=1:2, cex=0.8)
 
 plot(x = inversions$tick, y = inversions$number_mutations_I, col = "black", type = "l", xlab = "Generations", ylab = "Number of mutations in the inversion area", main = "Evolution of the number of mutations in the inversion area",xlim = c(0,Tmax),ylim = c(0,max*1.2))
 lines(x = inversions$tick, y = inversions$number_mutations_N, col = "blue", type = "l")
+legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
+       col=c("blue", "black"), lty=1:2, cex=0.8)
+
+T = length(inversions$tick)
+plot(x = inversions$tick[1:(T-1)], y = growth_rate_I, col = "black", type = "l", xlab = "Generations", ylab = "Mutation growth rates", main = "Evolution of the mutation growth rates",xlim = c(0,Tmax),ylim = c(-0.05,0.2))
+lines(x = inversions$tick[1:(T-1)], y = growth_rate_N, col = "blue", type = "l")
 legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
        col=c("blue", "black"), lty=1:2, cex=0.8)
 
@@ -124,4 +220,6 @@ legend("topleft", legend=c("Non-inverted haplosome", "Inverted haplosome"),
 plot(x = inversions$tick, y = inversions$effective_dominance, col = "red", type = "l", xlab = "Generations", ylab = "Effective dominance", main = "Evolution of the effective dominance",xlim = c(0,Tmax))
 
 plot(x = inversions$tick, y = inversions$dominance_variance, col = "green", type = "l", xlab = "Generations", ylab = "Dominance variance", main = "Evolution of the dominance variance",xlim = c(0,Tmax))
+
+
  
