@@ -3,7 +3,7 @@ initialize() {
 	// setSeed(9151250013170199950);
 
 	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
-	defineConstant("FileName","output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_s_0001_h_0_sinv_005_mig_0005_freqinv_005_scaling_5.csv");  // Suffix for the name of the generated files
+	defineConstant("FileName","output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_S_0001_m_0005_freqinv_005_scaling_5");  // Suffix for the name of the generated files
 	
 	defineConstant("Q", 5.0);  // Scaling factor
 
@@ -27,12 +27,12 @@ initialize() {
 
 	// -- Deleterious Mutations --
 
-	defineConstant("H",0.0);  // Dominance of the mutations
+	if (!exists("H")) defineConstant("H",0.0);  // Dominance of the mutations
 	defineConstant("S", -0.001); // Selection coefficient for the mutations
 
 	// -- Inversion parameters --
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
-	defineConstant("S_INV", 0.05); // Selection coefficient for the inversion
+	if (!exists("S_INV")) defineConstant("S_INV", 0.01); // Selection coefficient for the inversion
 
 
 	// -- Time parameters
@@ -117,7 +117,7 @@ initialize() {
 
 
 	// -- Log results --
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"Mu",Mu,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
+	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
 	log.addTick();
 	log.addCustomColumn("freq_I","freq_I;");  // Frequency of the inverted arrangement amongst haplosomes 
 
@@ -155,7 +155,8 @@ initialize() {
 	log.addCustomColumn("covariance_out_of_marginal_fitness_I","covariance_out_of_marginal_fitness_I;"); // Relative strength of the interaction between mutation and inversion comparing with the marginal fitnesses of both forces independently for both arrangements
 	log.addCustomColumn("covariance_out_of_marginal_fitness_N","covariance_out_of_marginal_fitness_N;");
 
-	log.addCustomColumn("effective_dominance","effective_dominance;"); // Effective dominance (dominance coefficient corresponding to a situation where all the fitness variability can be explained by the inversion)
+	log.addCustomColumn("effective_selection","effective_selection;"); // Effective selection (selection coefficient if the inversion was represented by a single position)
+	log.addCustomColumn("effective_dominance","effective_dominance;"); // Effective dominance (dominance coefficient if the inversion was represented by a single position)
 	log.addCustomColumn("dominance_variance","dominance_variance;"); // Variance that is not explained by additive fitness effects
 	
 
@@ -377,6 +378,7 @@ function (void)updateGlobal(void) {     // Updating all global variables
 		defineGlobal("covariance_out_of_marginal_fitness_I",0/0);
 		defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
 
+		defineGlobal("effective_selection",0/0);
 		defineGlobal("effective_dominance",0/0);
 		defineGlobal("dominance_variance",0/0);
 	}
@@ -413,6 +415,7 @@ function (void)updateGlobal(void) {     // Updating all global variables
 			defineGlobal("covariance_out_of_marginal_fitness_I",0/0);
 			defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
 
+			defineGlobal("effective_selection",0/0);
 			defineGlobal("effective_dominance",0/0);
 			defineGlobal("dominance_variance",0/0);
 		} 
@@ -445,7 +448,8 @@ function (void)updateGlobal(void) {     // Updating all global variables
 			defineGlobal("covariance_out_of_marginal_fitness_I",covariance_mutation_inversion_I/(marginal_fitness_inversion_I*(1-fitness_load_I))); // Relative strength of the interaction between mutation and inversion comparing with the marginal fitnesses of both forces independently for both arrangements
 			defineGlobal("covariance_out_of_marginal_fitness_N",covariance_mutation_inversion_N/(marginal_fitness_inversion_N*(1-fitness_load_N)));
 
-			defineGlobal("effective_dominance",((mean_fitness_global_IN)/(mean_fitness_global_NN) -1)/S_INV_scaled);
+			defineGlobal("effective_selection",mean_fitness_global_II-1);
+			defineGlobal("effective_dominance",(mean_fitness_global_IN -1)/(mean_fitness_global_II -1));
 			defineGlobal("dominance_variance",(mean_fitness_global_NN-1)^2 + (mean_fitness_global_IN-(1+S_INV_scaled*H_INV))^2 + (mean_fitness_global_II-(1+S_INV_scaled))^2);
 
 		}
