@@ -4,7 +4,7 @@ initialize() {
 
 	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
 	defineConstant("FileName","output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_S_0001_m_0005_freqinv_005_scaling_5");  // Suffix for the name of the generated files
-	
+	if (!exists("AnalysisName")) defineConstant("AnalysisName","NoAnalysis");   // Name of the analysis for differentiating simulations with identical sets of parameters
 	defineConstant("Q", 5.0);  // Scaling factor
 
 	if (!exists("Mu")) defineConstant("Mu",1e-5);  // Mutation rate
@@ -32,7 +32,7 @@ initialize() {
 
 	// -- Inversion parameters --
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
-	if (!exists("S_INV")) defineConstant("S_INV", 0.01); // Selection coefficient for the inversion
+	if (!exists("S_INV")) defineConstant("S_INV", 0.05); // Selection coefficient for the inversion
 
 
 	// -- Time parameters
@@ -117,7 +117,7 @@ initialize() {
 
 
 	// -- Log results --
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,".csv"), logInterval = LOG_INTERVAL_scaled);
+	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,AnalysisName,".csv"), logInterval = LOG_INTERVAL_scaled);
 	log.addTick();
 	log.addCustomColumn("freq_I","freq_I;");  // Frequency of the inverted arrangement amongst haplosomes 
 
@@ -156,7 +156,9 @@ initialize() {
 	log.addCustomColumn("covariance_out_of_marginal_fitness_N","covariance_out_of_marginal_fitness_N;");
 
 	log.addCustomColumn("effective_selection","effective_selection;"); // Effective selection (selection coefficient if the inversion was represented by a single position)
+	log.addCustomColumn("effective_selection_formula","effective_selection_formula;");  // Effective selection predicted by theory
 	log.addCustomColumn("effective_dominance","effective_dominance;"); // Effective dominance (dominance coefficient if the inversion was represented by a single position)
+	log.addCustomColumn("gamma","gamma;");
 	log.addCustomColumn("dominance_variance","dominance_variance;"); // Variance that is not explained by additive fitness effects
 	
 
@@ -291,6 +293,21 @@ function (float)Fitness(No<Individual> individuals) {
 	return(mean(a));
 }
 
+function (float) AnalyticalEffectiveSelection(No<Individual> individuals) {
+	if (individuals.size() == 0) {
+		return(0/0);
+	}
+	a = asFloat(1:(individuals.size()));
+	for (i in (1:(individuals.size()))) {
+		homozygous_mut = individuals[i-1].mutationsFromHaplosomes("homozygous",m1);
+		heterozygous_mut = individuals[i-1].mutationsFromHaplosomes("heterozygous",m1);
+		homozygous_mutations_number = homozygous_mut[(homozygous_mut.position >= INV_START) & (homozygous_mut.position <= INV_END)].size();
+		heterozygous_mutations_number = heterozygous_mut[(heterozygous_mut.position >= INV_START) & (heterozygous_mut.position <= INV_END)].size();
+		a[i-1] = S_INV_scaled + S_scaled*homozygous_mutations_number + H*S_scaled*heterozygous_mutations_number;   // Calculating fitnesses corresponding to individuals
+	}
+	return(mean(a));
+}
+
 
 function (void)updateGlobal(void) {     // Updating all global variables
 
@@ -330,15 +347,15 @@ function (void)updateGlobal(void) {     // Updating all global variables
 
 	homozygous_mutations_number_II = homozygous_mut_II[(homozygous_mut_II.position >= INV_START) & (homozygous_mut_II.position <= INV_END)].size(); 
 	heterozygous_mutations_number_II = heterozygous_mut_II[(heterozygous_mut_II.position >= INV_START) & (heterozygous_mut_II.position <= INV_END)].size();
-	total_mutations_number_II = all_mut_II[(all_mut_II.position >= INV_START) & (all_mut_II.position <= INV_END)];
+	total_mutations_number_II = all_mut_II[(all_mut_II.position >= INV_START) & (all_mut_II.position <= INV_END)].size();
 	
 	homozygous_mutations_number_IN = homozygous_mut_IN[(homozygous_mut_IN.position >= INV_START) & (homozygous_mut_IN.position <= INV_END)].size();
 	heterozygous_mutations_number_IN = heterozygous_mut_IN[(heterozygous_mut_IN.position >= INV_START) & (heterozygous_mut_IN.position <= INV_END)].size();
-	all_mut_IN = all_mut_IN[(all_mut_IN.position >= INV_START) & (all_mut_IN.position <= INV_END)];
+	total_mutations_number_IN = all_mut_IN[(all_mut_IN.position >= INV_START) & (all_mut_IN.position <= INV_END)].size();
 	
 	homozygous_mutations_number_NN = homozygous_mut_NN[(homozygous_mut_NN.position >= INV_START) & (homozygous_mut_NN.position <= INV_END)].size();
 	heterozygous_mutations_number_NN = heterozygous_mut_NN[(heterozygous_mut_NN.position >= INV_START) & (heterozygous_mut_NN.position <= INV_END)].size();
-	all_mut_NN = all_mut_NN[(all_mut_NN.position >= INV_START) & (all_mut_NN.position <= INV_END)];
+	total_mutations_number_NN = all_mut_NN[(all_mut_NN.position >= INV_START) & (all_mut_NN.position <= INV_END)].size();
 
 	defineGlobal("freq_homozygous_mut_II",homozygous_mutations_number_II/(homozygous_mutations_number_II + heterozygous_mutations_number_II)); // Frequencies of homozygous positions amongst those with mutations in arrangement karyotypes
 	defineGlobal("freq_homozygous_mut_IN",homozygous_mutations_number_IN/(homozygous_mutations_number_IN + heterozygous_mutations_number_IN));
@@ -354,6 +371,7 @@ function (void)updateGlobal(void) {     // Updating all global variables
 
 		defineGlobal("number_mutations_I", sum((pos_inv >= INV_START) & (pos_inv <= INV_END))/(inv.size()));
 		defineGlobal("number_mutations_N",0/0);
+
 
 		defineGlobal("marginal_fitness_inversion_I", 0/0);
 		defineGlobal("marginal_fitness_inversion_N", 0/0);
@@ -379,7 +397,9 @@ function (void)updateGlobal(void) {     // Updating all global variables
 		defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
 
 		defineGlobal("effective_selection",0/0);
+		defineGlobal("effective_selection_formula",0/0);
 		defineGlobal("effective_dominance",0/0);
+		defineGlobal("gamma",0/0);
 		defineGlobal("dominance_variance",0/0);
 	}
 	// Case when the inversion is lost
@@ -416,7 +436,9 @@ function (void)updateGlobal(void) {     // Updating all global variables
 			defineGlobal("covariance_out_of_marginal_fitness_N",0/0);
 
 			defineGlobal("effective_selection",0/0);
+			defineGlobal("effective_selection_formula",0/0);
 			defineGlobal("effective_dominance",0/0);
+			defineGlobal("gamma",0/0);
 			defineGlobal("dominance_variance",0/0);
 		} 
 		// Case of inversion polymorphism
@@ -448,8 +470,10 @@ function (void)updateGlobal(void) {     // Updating all global variables
 			defineGlobal("covariance_out_of_marginal_fitness_I",covariance_mutation_inversion_I/(marginal_fitness_inversion_I*(1-fitness_load_I))); // Relative strength of the interaction between mutation and inversion comparing with the marginal fitnesses of both forces independently for both arrangements
 			defineGlobal("covariance_out_of_marginal_fitness_N",covariance_mutation_inversion_N/(marginal_fitness_inversion_N*(1-fitness_load_N)));
 
-			defineGlobal("effective_selection",mean_fitness_global_II-1);
-			defineGlobal("effective_dominance",(mean_fitness_global_IN -1)/(mean_fitness_global_II -1));
+			defineGlobal("effective_selection",mean_fitness_global_II/mean_fitness_global_NN-1);
+			defineGlobal("effective_selection_formula",AnalyticalEffectiveSelection(II_individuals));
+			defineGlobal("effective_dominance",(mean_fitness_global_IN/mean_fitness_global_NN -1)/(mean_fitness_global_II/mean_fitness_global_NN -1));
+			defineGlobal("gamma",(effective_dominance -1)*effective_selection);
 			defineGlobal("dominance_variance",(mean_fitness_global_NN-1)^2 + (mean_fitness_global_IN-(1+S_INV_scaled*H_INV))^2 + (mean_fitness_global_II-(1+S_INV_scaled))^2);
 
 		}
