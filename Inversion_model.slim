@@ -117,7 +117,7 @@ initialize() {
 
 
 	// -- Log results --
-	log = community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,AnalysisName,".csv"), logInterval = LOG_INTERVAL_scaled);
+	defineConstant("log",community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,AnalysisName,".csv"), logInterval = LOG_INTERVAL_scaled));
 	log.addTick();
 	log.addCustomColumn("freq_I","freq_I;");  // Frequency of the inverted arrangement amongst haplosomes 
 
@@ -161,6 +161,7 @@ initialize() {
 	log.addCustomColumn("gamma","gamma;");
 	log.addCustomColumn("dominance_variance","dominance_variance;"); // Variance that is not explained by additive fitness effects
 	
+	log.addSuppliedColumn("extinction_time");
 
 
 	// Proportion of simulations with inverted haplosomes still existing (in Bash)
@@ -181,6 +182,8 @@ mutation(m2) {
 
 T_INV_scaled:T_MAX_scaled late() {
 	if (sim.countOfMutationsOfType(m3)==0) {
+		log.setSuppliedValue("extinction_time",sim.cycle);
+		log.logRow();
 		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation.txt",paste("Time of loss of the inversion","(Rep ",Rep,"): ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
 		sim.simulationFinished();
 	}
