@@ -37,7 +37,7 @@ initialize() {
 
 	// -- Time parameters
 	defineConstant("T_MAX", 150e3); // Time of simulation end
-	defineConstant("LOG_INTERVAL", 5e3); // Time interval for logging inversion frequencies and number of deleterious mutations
+	defineConstant("LOG_INTERVAL", 2e3); // Time interval for logging inversion frequencies and number of deleterious mutations
 	defineConstant("T_INV", 50e3);  // Burn-in time before introducing inversions
 	
 
@@ -184,7 +184,7 @@ T_INV_scaled:T_MAX_scaled late() {
 	if (sim.countOfMutationsOfType(m3)==0) {
 		log.setSuppliedValue("extinction_time",sim.cycle);
 		log.logRow();
-		writeFile("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation.txt",paste("Time of loss of the inversion","(Rep ",Rep,"): ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
+		writeFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation","Rep",Rep,".txt"),paste("Time of loss of the inversion","(Rep ",Rep,"): ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
 		sim.simulationFinished();
 	}
 }
