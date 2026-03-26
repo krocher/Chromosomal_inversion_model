@@ -7,6 +7,6 @@ for H in ${val[@]}
 do
     for i in {1..5}
     do 
-        slim -d Rep=${i} -d H=${H} -d AnalysisName = AnalysisName  Inversion_model.slim &
+        slim -d Rep=${i} -d H=${H} -d AnalysisName = "\"$AnalysisName\""  Inversion_model.slim &
     done
 done
