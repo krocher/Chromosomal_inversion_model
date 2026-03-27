@@ -1,6 +1,6 @@
 #!/bin/bash
 
-val=( '1e-6' '5e-6' '1e-5' '5e-5' )
+val=( '1e-6' '5e-6' '1e-5' '5e-5' '1e-4' '5e-4')
 AnalysisName="MutationRateSensitivityAnalysis"
 
 for Mu in ${val[@]}
