@@ -1,20 +1,21 @@
 // Modelling chromosomal inversions in bi-allelic populations (continent-island model)
 initialize() {
-	// setSeed(9151250013170199950);
 
 	if (!exists("Rep")) defineConstant("Rep",1);  // Identifier of the simulation amongst simulations with identical parameters
-	defineConstant("FileName","output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_recrate_1e-5_S_0001_m_0005_freqinv_005_scaling_5");  // Suffix for the name of the generated files
+	defineConstant("FileName","output_test_N1_20e3_N2_20e3_chrom_length_3e3_inv_length_2e3_m_0005_scaling_5");  // Suffix for the name of the generated files
 	if (!exists("AnalysisName")) defineConstant("AnalysisName","NoAnalysis");   // Name of the analysis for differentiating simulations with identical sets of parameters
+	defineConstant("AnalysisNumber", 2);  // ID of the Analysis
 	defineConstant("Q", 5.0);  // Scaling factor
 
 	if (!exists("Mu")) defineConstant("Mu",1e-5);  // Mutation rate
-	defineConstant("R",1e-5);   // Recombination rate
+	if (!exists("R")) defineConstant("R",1e-5);   // Recombination rate
 	defineConstant("L",3e3);   // Sequence length
-	defineConstant("I",0.05);  // Initial proportion of inverted arrangements in population 2
+	if (!exists("I")) defineConstant("I",0.05);  // Initial proportion of inverted arrangements in population 2
 	defineConstant("INV_LENGTH",2e3);   // Inversion length
 	defineConstant("INV_START", asInteger(L/2 - INV_LENGTH/2));  // Beginning position of the inversion
 	defineConstant("INV_END", INV_START + INV_LENGTH - 1);  // End position of the inversion
 	defineConstant("Double_Crossover",F);  // Boolean for inclusion or exclusion of double crossovers
+	defineConstant("Reverse_Mutations",F); // Boolean for inclusion of back-mutations
 
 	// -- Demographic parameters --
 	
@@ -28,7 +29,7 @@ initialize() {
 	// -- Deleterious Mutations --
 
 	if (!exists("H")) defineConstant("H",0.0);  // Dominance of the mutations
-	defineConstant("S", -0.001); // Selection coefficient for the mutations
+	if (!exists("S")) defineConstant("S", -0.001); // Selection coefficient for the mutations
 
 	// -- Inversion parameters --
 	defineConstant("H_INV",0.5);  // Dominance of the inversion
@@ -37,7 +38,7 @@ initialize() {
 
 	// -- Time parameters
 	defineConstant("T_MAX", 150e3); // Time of simulation end
-	defineConstant("LOG_INTERVAL", 2e3); // Time interval for logging inversion frequencies and number of deleterious mutations
+	defineConstant("LOG_INTERVAL", 5e3); // Time interval for logging inversion frequencies and number of deleterious mutations
 	defineConstant("T_INV", 50e3);  // Burn-in time before introducing inversions
 	
 
@@ -117,7 +118,7 @@ initialize() {
 
 
 	// -- Log results --
-	defineConstant("log",community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,AnalysisName,".csv"), logInterval = LOG_INTERVAL_scaled));
+	defineConstant("log",community.createLogFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/freq_",FileName,"R",R,"S",S,"I",I,"H",H,"S_INV",S_INV,"Mu",Mu,"Rep",Rep,AnalysisName,AnalysisNumber,"ReverseMutations",Reverse_Mutations,".csv"), logInterval = LOG_INTERVAL_scaled));
 	log.addTick();
 	log.addCustomColumn("freq_I","freq_I;");  // Frequency of the inverted arrangement amongst haplosomes 
 
@@ -176,7 +177,7 @@ T_INV_scaled late() {
 // Replacing the SLiM default mutation function by one that returns the opposite allele from the one previously present
 mutation(m2) {
 	if (haplosome.containsMarkerMutation(m1,mut.position))
-		return T;
+		return Reverse_Mutations;
 	return MUT[mut.position];
 }
 
@@ -184,7 +185,6 @@ T_INV_scaled:T_MAX_scaled late() {
 	if (sim.countOfMutationsOfType(m3)==0) {
 		log.setSuppliedValue("extinction_time",sim.cycle);
 		log.logRow();
-		writeFile(paste("/home/taubier/Documents/SAUVEGARDES_STAGIAIRES/Kilian/Results/Result_files/last_generation","Rep",Rep,".txt"),paste("Time of loss of the inversion","(Rep ",Rep,"): ", sim.cycle));   // Exporting into a file the time of loss of the inversion, 
 		sim.simulationFinished();
 	}
 }
